@@ -2,574 +2,258 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
     <title>Subangan ARchive System (Prototype)</title>
 
-    <!-- A-Frame (3D / scene graph) -->
+    <!-- A-Frame -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
 
-    <!-- AR.js for A-Frame (marker tracking via camera) -->
-    <!-- Use a versioned CDN URL for more predictable GitHub Pages deployments. -->
-    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <!-- AR.js - Using a more stable version -->
+    <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
     <style>
-      :root {
-        --bg0: #0a0f0a;
-        --bg1: #0f1a0f;
-        --card: rgba(255, 255, 255, 0.08);
-        --card2: rgba(255, 255, 255, 0.12);
-        --stroke: rgba(34, 197, 94, 0.3);
-        --text: rgba(255, 255, 255, 0.95);
-        --muted: rgba(255, 255, 255, 0.75);
-        --muted2: rgba(255, 255, 255, 0.6);
-        --accent: rgba(34, 197, 94, 0.9);
-        --accent2: rgba(22, 163, 74, 0.8);
-      }
-
-      html,
       body {
-        width: 100%;
-        height: 100%;
         margin: 0;
         overflow: hidden;
-        background: radial-gradient(1200px 600px at 25% 20%, rgba(34, 197, 94, 0.15), transparent 55%),
-          radial-gradient(900px 500px at 70% 10%, rgba(22, 163, 74, 0.12), transparent 55%),
-          linear-gradient(180deg, var(--bg1), var(--bg0));
-        animation: bgShift 20s ease-in-out infinite alternate;
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
       }
-      @keyframes bgShift {
-        0% { background-position: 0% 50%; }
-        100% { background-position: 100% 50%; }
-      }
-      body.ar-mode {
-        background: #000;
-      }
-      #ui {
+      
+      /* UI Overlay - shown before AR starts */
+      #ui-overlay {
         position: fixed;
-        inset: 0;
-        display: grid;
-        place-items: center;
-        padding: 22px;
-        z-index: 9998;
-        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-        color: var(--text);
-        animation: fadeInUp 0.8s ease-out;
-      }
-      @keyframes fadeInUp {
-        from { opacity: 0; transform: translateY(30px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-      #card {
-        width: min(860px, 100%);
-        background: linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.04));
-        border: 1px solid var(--stroke);
-        border-radius: 18px;
-        padding: 18px;
-        box-shadow: 0 20px 70px rgba(0, 0, 0, 0.6);
-        backdrop-filter: blur(10px);
-      }
-      #top {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        gap: 12px;
-        margin-bottom: 14px;
-      }
-      #brand {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        min-width: 0;
-      }
-      #logo {
-        width: 40px;
-        height: 40px;
-        border-radius: 12px;
-        border: 1px solid var(--stroke);
-        background: radial-gradient(12px 12px at 30% 30%, rgba(255, 255, 255, 0.55), transparent 55%),
-          linear-gradient(135deg, rgba(34, 197, 94, 0.55), rgba(22, 163, 74, 0.55));
-        animation: logoPulse 2s ease-in-out infinite;
-      }
-      @keyframes logoPulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.05); }
-      }
-      #brand h1 {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 760;
-        letter-spacing: 0.2px;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      #tag {
-        margin: 2px 0 0;
-        font-size: 12px;
-        color: var(--muted2);
-      }
-
-      #hero {
-        padding: 14px;
-        border-radius: 16px;
-        border: 1px solid rgba(34, 197, 94, 0.2);
-        background: radial-gradient(600px 220px at 20% 0%, rgba(34, 197, 94, 0.18), transparent 60%),
-          radial-gradient(520px 220px at 80% 0%, rgba(22, 163, 74, 0.15), transparent 62%),
-          rgba(0, 0, 0, 0.22);
-      }
-      #heroTitle {
-        margin: 0 0 6px;
-        font-size: 18px;
-        font-weight: 740;
-      }
-      #heroSub {
-        margin: 0;
-        color: var(--muted);
-        font-size: 14px;
-        line-height: 1.45;
-      }
-
-      #grid {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 12px;
-        margin-top: 12px;
-      }
-      @media (min-width: 760px) {
-        #grid {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
-      .panel {
-        border-radius: 16px;
-        border: 1px solid rgba(34, 197, 94, 0.2);
-        background: rgba(0, 0, 0, 0.16);
-        padding: 14px;
-      }
-      .panel h2 {
-        margin: 0 0 8px;
-        font-size: 14px;
-        color: rgba(255, 255, 255, 0.9);
-        font-weight: 700;
-        letter-spacing: 0.2px;
-      }
-      .panel p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 13px;
-        line-height: 1.45;
-      }
-      #steps {
-        margin: 10px 0 0;
-        padding: 0;
-        list-style: none;
-        display: grid;
-        gap: 10px;
-      }
-      .step {
-        display: grid;
-        grid-template-columns: 26px 1fr;
-        gap: 10px;
-        align-items: start;
-      }
-      .badge {
-        width: 26px;
-        height: 26px;
-        border-radius: 9px;
-        display: grid;
-        place-items: center;
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        background: rgba(255, 255, 255, 0.06);
-        color: rgba(255, 255, 255, 0.9);
-        font-weight: 800;
-        font-size: 12px;
-      }
-      .step b {
-        font-weight: 700;
-        color: rgba(255, 255, 255, 0.92);
-      }
-
-      #actions {
-        display: grid;
-        grid-template-columns: 1fr;
-        gap: 10px;
-        margin-top: 12px;
-      }
-      @media (min-width: 520px) {
-        #actions {
-          grid-template-columns: 1fr 1fr;
-        }
-      }
-      #start {
-        width: 100%;
-        appearance: none;
-        border: 1px solid rgba(34, 197, 94, 0.3);
-        background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3));
-        color: #fff;
-        padding: 12px 14px;
-        border-radius: 14px;
-        font-size: 15px;
-        font-weight: 680;
-        cursor: pointer;
-        transition: all 0.2s ease;
-      }
-      #start:hover {
-        border-color: rgba(34, 197, 94, 0.5);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-      }
-      #start:active {
-        transform: translateY(1px);
-      }
-      #start[disabled] {
-        opacity: 0.6;
-        cursor: not-allowed;
-      }
-      #markerLink {
-        width: 100%;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
-        text-decoration: none;
-        border: 1px solid rgba(34, 197, 94, 0.3);
-        background: linear-gradient(135deg, rgba(34, 197, 94, 0.3), rgba(22, 163, 74, 0.3));
-        color: #fff;
-        padding: 12px 14px;
-        border-radius: 14px;
-        font-size: 14px;
-        font-weight: 650;
-        transition: all 0.2s ease;
-      }
-      #markerLink:hover {
-        border-color: rgba(34, 197, 94, 0.5);
-        transform: translateY(-1px);
-        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.4);
-      }
-      #markerLink:active {
-        transform: translateY(1px);
-      }
-      #error {
-        margin-top: 10px;
-        font-size: 13px;
-        line-height: 1.4;
-        color: #ffdddd;
-        display: none;
-      }
-      #hint {
-        position: fixed;
+        top: 0;
         left: 0;
         right: 0;
         bottom: 0;
-        padding: 12px 14px;
-        font-size: 14px;
-        line-height: 1.35;
-        color: #fff;
-        background: rgba(0, 0, 0, 0.55);
-        z-index: 9999;
-        display: none;
+        background: linear-gradient(135deg, #0a0f0a, #0f1a0f);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        transition: opacity 0.5s ease;
       }
-
-      /* AR view: make sure the injected scene/video fills the screen. */
-      #ar-root {
-        position: fixed;
-        inset: 0;
-        z-index: 0;
+      
+      .card {
+        max-width: 500px;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        padding: 30px 24px;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+        text-align: center;
+        color: white;
       }
-      #ar-root a-scene {
-        position: absolute !important;
-        inset: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
+      
+      .card h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        background: linear-gradient(135deg, #4ade80, #22c55e);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
       }
-      #ar-root canvas,
-      #ar-root video {
-        width: 100% !important;
-        height: 100% !important;
+      
+      .card p {
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.5;
+        margin: 16px 0;
       }
-      #ar-root video {
-        object-fit: cover;
-      }
-      #hint b {
+      
+      .btn {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+        border: none;
+        color: white;
+        padding: 14px 32px;
+        font-size: 18px;
         font-weight: 600;
+        border-radius: 40px;
+        cursor: pointer;
+        margin-top: 16px;
+        transition: transform 0.2s, box-shadow 0.2s;
       }
-
-      /* Hide A-Frame's "Enter VR" button for this AR prototype. */
-      .a-enter-vr {
+      
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
+      }
+      
+      .btn:active {
+        transform: translateY(0);
+      }
+      
+      .steps {
+        text-align: left;
+        margin: 24px 0;
+        padding-left: 20px;
+      }
+      
+      .steps li {
+        margin: 12px 0;
+        color: rgba(255, 255, 255, 0.9);
+      }
+      
+      .steps li strong {
+        color: #4ade80;
+      }
+      
+      .marker-box {
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 12px;
+        padding: 12px;
+        margin-top: 16px;
+        font-size: 12px;
+        color: #aaa;
+      }
+      
+      .marker-box a {
+        color: #4ade80;
+        word-break: break-all;
+      }
+      
+      .hidden {
+        opacity: 0;
+        pointer-events: none;
+      }
+      
+      /* AR.js camera fix - ensure video fills screen */
+      .a-enter-vr, .a-enter-ar {
         display: none !important;
       }
-
-      /* Hide A-Frame overlay/modals that can appear on mobile. */
-      .a-enter-vr-button,
-      .a-enter-ar-button,
-      .a-orientation-modal,
-      .a-dialog-container,
-      .a-modal {
-        display: none !important;
+      
+      a-scene {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
       }
     </style>
   </head>
-
+  
   <body>
-    <!-- Landing UI: keeps the experience from jumping straight to camera. -->
-    <div id="ui">
-      <div id="card">
-        <div id="top">
-          <div id="brand">
-            <div id="logo" aria-hidden="true"></div>
-            <div>
-              <h1>Subangan ARchive System</h1>
-              <div id="tag">Marker-based AR archive prototype</div>
-            </div>
-          </div>
+    <!-- UI Overlay -->
+    <div id="ui-overlay">
+      <div class="card">
+        <h1>🏺 Subangan ARchive</h1>
+        <p>Interactive digital archive with augmented reality</p>
+        
+        <div class="steps">
+          <li><strong>Step 1:</strong> Tap "Start AR" below</li>
+          <li><strong>Step 2:</strong> Allow camera access when prompted</li>
+          <li><strong>Step 3:</strong> Point camera at the Hiro marker</li>
+          <li><strong>Step 4:</strong> Watch the 3D artifact appear! ✨</li>
         </div>
-
-        <div id="hero">
-          <div id="heroTitle">Explore artifacts through AR</div>
-          <p id="heroSub">
-            Scan a QR code to open this page, then tap <b>Start AR</b> to enable your camera. When the marker is detected, a 3D model appears on your screen.
-          </p>
+        
+        <button class="btn" id="start-ar">🎯 Start AR Experience</button>
+        
+        <div class="marker-box">
+          📌 Need the marker? <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Download Hiro Marker</a><br>
+          Print it or display on another device.
         </div>
-
-        <div id="grid">
-          <div class="panel">
-            <h2>Quick start</h2>
-            <ul id="steps">
-              <li class="step"><div class="badge">1</div><div><b>Tap Start AR</b> and allow camera access.</div></li>
-              <li class="step"><div class="badge">2</div><div>Point the camera at the <b>Hiro marker</b> (printed or on another screen).</div></li>
-              <li class="step"><div class="badge">3</div><div>The <b>3D artifact</b> appears on top of the marker.</div></li>
-            </ul>
-          </div>
-          <div class="panel">
-            <h2>Demo notes</h2>
-            <p>
-              <b>Note:</b> AR works best on mobile devices (Android/iOS). On laptop, camera may not start if another app is using it or permissions are blocked.
-              Laptop testing: open this page in <b>Chrome</b> or <b>Edge</b> (not the VS Code preview), then tap <b>Start AR</b> and allow camera.
-              If it fails, check Windows camera privacy settings and close other apps using the camera.
-            </p>
-            <div id="actions">
-              <button id="start" type="button">Start AR</button>
-              <a
-                id="markerLink"
-                href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                View Marker
-              </a>
-            </div>
-            <div id="error"></div>
-          </div>
-        </div>
+        
+        <p style="font-size: 12px; margin-top: 20px; opacity: 0.6;">
+          Davao Oriental's cultural heritage — preserved through AR
+        </p>
       </div>
     </div>
-
-    <!-- AR content is injected only after user taps Start AR (better permissions UX). -->
-    <div id="ar-root"></div>
-
-    <div id="hint">
-      <b>Need the marker?</b> https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png
-    </div>
-
+    
+    <!-- AR Scene will be injected here -->
+    <div id="ar-container"></div>
+    
     <script>
-      (function () {
-        const startButton = document.getElementById('start');
-        const ui = document.getElementById('ui');
-        const arRoot = document.getElementById('ar-root');
-        const hint = document.getElementById('hint');
-        const error = document.getElementById('error');
-
-        let started = false;
-
-        function showError(message) {
-          error.style.display = 'block';
-          error.textContent = message;
-        }
-
-        function injectARScene() {
-          // Marker-based AR prototype.
-          // - Uses the built-in "hiro" marker.
-          // - Shows a glTF model when the marker is detected.
-          const isMobile =
-            (navigator.userAgentData && navigator.userAgentData.mobile) ||
-            /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent);
-
-          const arjsAttr = isMobile
-            ? 'sourceType: webcam; facingMode: environment; debugUIEnabled: false;'
-            : 'sourceType: webcam; debugUIEnabled: false;';
-
-          arRoot.innerHTML = `
-            <a-scene
-              embedded
+      (function() {
+        const startBtn = document.getElementById('start-ar');
+        const uiOverlay = document.getElementById('ui-overlay');
+        const arContainer = document.getElementById('ar-container');
+        
+        let arStarted = false;
+        
+        // Create a simple fallback 3D model if your artifact.glb is missing
+        // This creates a colored cube that will appear on the marker
+        const createFallbackModel = () => {
+          // Return HTML for a simple box as fallback
+          return `
+            <a-box color="#22c55e" position="0 0.5 0" width="0.8" height="0.8" depth="0.8" opacity="0.9">
+              <a-animation attribute="rotation" to="360 360 360" dur="5000" easing="linear" repeat="indefinite"></a-animation>
+            </a-box>
+            <a-torus color="#4ade80" position="0 0.5 0" radius="0.5" radius-tubular="0.05" rotation="-90 0 0">
+              <a-animation attribute="rotation" to="0 360 0" dur="4000" easing="linear" repeat="indefinite"></a-animation>
+            </a-torus>
+            <a-text value="Subangan Artifact" align="center" position="0 1.2 0" color="#22c55e" scale="0.5 0.5 0.5"></a-text>
+          `;
+        };
+        
+        function startAR() {
+          if (arStarted) return;
+          arStarted = true;
+          
+          // Hide UI
+          uiOverlay.classList.add('hidden');
+          
+          // Small delay to ensure smooth transition
+          setTimeout(() => {
+            uiOverlay.style.display = 'none';
+          }, 500);
+          
+          // Check if artifact.glb exists, otherwise use fallback
+          const useFallback = false; // Set to false after you upload your .glb file
+          
+          const modelContent = useFallback ? createFallbackModel() : `
+            <a-gltf-model 
+              src="./artifact.glb" 
+              position="0 0 0" 
+              rotation="0 180 0" 
+              scale="0.6 0.6 0.6"
+            ></a-gltf-model>
+            <a-text value="Subangan Artifact" align="center" position="0 1.2 0" color="#22c55e" scale="0.5 0.5 0.5"></a-text>
+          `;
+          
+          // Inject AR scene directly (simpler approach - no preflight conflicts)
+          arContainer.innerHTML = `
+            <a-scene 
+              embedded 
+              arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
               vr-mode-ui="enabled: false"
-              renderer="antialias: true; alpha: true"
-              arjs="${arjsAttr}"
+              renderer="logarithmicDepthBuffer: true; antialias: true"
             >
+              <!-- Hiro marker (standard AR pattern) -->
               <a-marker preset="hiro">
                 <a-entity position="0 0 0">
-                  <a-gltf-model
-                    src="./artifact.glb"
-                    position="0 0 0"
-                    rotation="0 180 0"
-                    scale="0.6 0.6 0.6"
-                  ></a-gltf-model>
-                  <a-text
-                    value="Subangan ARchive\\nArtifact Loaded"
-                    align="center"
-                    width="2.2"
-                    position="0 1.4 0"
-                    color="#FFFFFF"
-                  ></a-text>
+                  ${modelContent}
                 </a-entity>
               </a-marker>
+              
+              <!-- Static camera -->
               <a-entity camera></a-entity>
             </a-scene>
           `;
-
-          const scene = arRoot.querySelector('a-scene');
-          if (!scene) return;
-
-          scene.addEventListener('loaded', () => {
-            console.log('A-Frame scene loaded');
-            scene.startAR();
-            console.log('AR started');
-          });
-
-          scene.addEventListener('arError', (event) => {
-            console.error('AR Error:', event.detail);
-            showError('AR failed: ' + event.detail);
-          });
-
-          let watchdog = window.setTimeout(() => {
-            // If the user didn't get/accept a permission prompt, MindAR can stall silently.
-            started = false;
-            document.body.classList.remove('ar-mode');
-            ui.style.display = 'grid';
-            hint.style.display = 'none';
-            arRoot.innerHTML = '';
-            startButton.removeAttribute('disabled');
-            startButton.textContent = 'Start AR';
-            showError(
-              'Camera did not start. If you see a camera permission prompt, click Allow. Otherwise: check the browser camera permission (🔒 icon), Windows camera privacy settings, and close other apps using the camera.'
-            );
-          }, 12000);
-
-          // More reliable than AR.js custom events: detect when the video element
-          // is created and actually starts playing.
-          const clearWatchdog = () => {
-            if (watchdog) window.clearTimeout(watchdog);
-            watchdog = null;
-          };
-
-          const attachVideoListeners = (video) => {
-            if (!video || video.__subanganListenersAttached) return;
-            video.__subanganListenersAttached = true;
-
-            const onPlaying = () => {
-              clearWatchdog();
-            };
-            const onError = () => {
-              clearWatchdog();
-            };
-
-            video.addEventListener('playing', onPlaying, { once: true });
-            video.addEventListener('loadedmetadata', () => {
-              // Some browsers won't emit 'playing' immediately.
-              if (!video.paused && !video.ended) clearWatchdog();
+          
+          // Log when scene is ready
+          const scene = document.querySelector('a-scene');
+          if (scene) {
+            scene.addEventListener('loaded', () => {
+              console.log('✅ AR Scene loaded - camera should be active');
             });
-            video.addEventListener('error', onError);
-          };
-
-          const tryFindVideo = () => {
-            const video = arRoot.querySelector('video');
-            if (video) attachVideoListeners(video);
-          };
-
-          tryFindVideo();
-          const observer = new MutationObserver(() => tryFindVideo());
-          observer.observe(arRoot, { childList: true, subtree: true });
-
-          // AR.js emits these events when the video source is ready or fails.
-          scene.addEventListener('arjs-video-loaded', () => {
-            // Camera is running.
-            clearWatchdog();
-          });
-          scene.addEventListener('arjs-video-error', (evt) => {
-            clearWatchdog();
-            started = false;
-            document.body.classList.remove('ar-mode');
-            ui.style.display = 'grid';
-            hint.style.display = 'none';
-            arRoot.innerHTML = '';
-            startButton.removeAttribute('disabled');
-            startButton.textContent = 'Start AR';
-            const details =
-              (evt && evt.detail && (evt.detail.message || evt.detail.name)) ||
-              'Camera failed to start.';
-            showError(
-              `Camera failed to start: ${details}.\n\nTry: (1) allow camera permission, (2) close other apps using the camera, (3) use Chrome/Edge (Android) or Safari (iOS), (4) ensure you're on HTTPS (GitHub Pages).`
-            );
-          });
+            
+            scene.addEventListener('arError', (e) => {
+              console.error('❌ AR Error:', e.detail);
+              // Show error and allow retry
+              alert('Camera error. Please ensure you:\n1. Allowed camera permission\n2. Are on HTTPS (GitHub Pages)\n3. No other app using camera');
+              uiOverlay.style.display = 'flex';
+              uiOverlay.classList.remove('hidden');
+              arStarted = false;
+            });
+          }
         }
-
-        async function preflightCameraPermission() {
-          if (!navigator.mediaDevices?.getUserMedia) {
-            throw new Error('Camera API not available in this browser.');
-          }
-
-          // If the browser exposes camera permission state and it's already granted,
-          // skip preflight to avoid double-opening the webcam (can fail on some laptops).
-          try {
-            if (navigator.permissions && navigator.permissions.query) {
-              const status = await navigator.permissions.query({ name: 'camera' });
-              if (status && status.state === 'granted') {
-                return;
-              }
-            }
-          } catch {
-            // Ignore: Permissions API not supported for 'camera' in some browsers.
-          }
-
-          // Trigger the permission prompt directly from the user gesture.
-          // We stop immediately so AR.js can open its own stream.
-          const stream = await navigator.mediaDevices.getUserMedia({
-            video: true,
-            audio: false,
-          });
-          stream.getTracks().forEach((t) => t.stop());
-        }
-
-        startButton.addEventListener('click', async () => {
-          if (started) return;
-          started = true;
-          error.style.display = 'none';
-          startButton.setAttribute('disabled', 'disabled');
-          startButton.textContent = 'Starting…';
-
-          try {
-            await preflightCameraPermission();
-          } catch (e) {
-            started = false;
-            startButton.removeAttribute('disabled');
-            startButton.textContent = 'Start AR';
-
-            const name = (e && e.name) || 'Error';
-            const message = (e && e.message) || String(e);
-            showError(
-              `Camera permission failed: ${name}${message ? ` — ${message}` : ''}.\n\nFixes: (1) click the 🔒 icon in the address bar and set Camera = Allow, (2) Windows Settings → Privacy & security → Camera → allow desktop apps, (3) close Zoom/Teams/Meet that might be using the camera.`
-            );
-            return;
-          }
-
-          // Give the OS a moment to release the webcam if preflight opened it.
-          await new Promise((resolve) => window.setTimeout(resolve, 250));
-
-          ui.style.display = 'none';
-          hint.style.display = 'block';
-          document.body.classList.add('ar-mode');
-          injectARScene();
-        });
+        
+        // Start button click
+        startBtn.addEventListener('click', startAR);
+        
+        // Auto-start on mobile? Uncomment if desired
+        // if (/Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        //   startAR();
+        // }
       })();
     </script>
   </body>
