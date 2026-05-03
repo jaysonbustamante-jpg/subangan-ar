@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Fixed Horizontal Rotation</title>
+  <title>Subangan ARchive - Final</title>
   
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -186,6 +186,32 @@
       background: rgba(34, 197, 94, 0.3);
     }
     
+    .reset-btn {
+      position: fixed;
+      left: 20px;
+      bottom: 130px;
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(10px);
+      border: 2px solid #22c55e;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: bold;
+      color: #22c55e;
+      cursor: pointer;
+      z-index: 1001;
+      display: none;
+    }
+    
+    .reset-btn:active {
+      transform: scale(0.92);
+      background: rgba(34, 197, 94, 0.3);
+    }
+    
     #status-message {
       position: fixed;
       bottom: 120px;
@@ -201,6 +227,25 @@
       z-index: 1001;
       pointer-events: none;
     }
+    
+    #zoom-indicator {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 40px;
+      padding: 15px 25px;
+      color: #22c55e;
+      font-size: 18px;
+      font-weight: bold;
+      z-index: 1002;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      white-space: nowrap;
+    }
   </style>
 </head>
 
@@ -212,15 +257,16 @@
       
       <div>
         <span class="feature-badge">🔄 360° Horizontal Spin</span>
-        <span class="feature-badge">◀ ▶ Rotate Left/Right</span>
-        <span class="feature-badge">➕ ➖ Zoom</span>
+        <span class="feature-badge">◀ ▶ Rotate</span>
+        <span class="feature-badge">➕ ➖ Move Farther/Closer</span>
+        <span class="feature-badge">📏 Can go VERY FAR</span>
       </div>
       
       <div class="steps">
         <li><strong>1:</strong> Tap "Start AR" and allow camera</li>
         <li><strong>2:</strong> Scan the Hiro marker ONCE</li>
-        <li><strong>3:</strong> Use ◀ ▶ to spin model LEFT/RIGHT</li>
-        <li><strong>4:</strong> Use ➕ ➖ to zoom in/out</li>
+        <li><strong>3:</strong> Press ➖ to make model SMALLER (farther away)</li>
+        <li><strong>4:</strong> Press ⟳ to reset</li>
       </div>
       
       <button class="btn" id="start-ar">🎯 Start AR Experience</button>
@@ -233,7 +279,8 @@
   
   <div id="ar-container"></div>
   
-  <div id="status-message">📍 Scan Hiro marker to place model</div>
+  <div id="status-message">📍 Scan Hiro marker once to place model</div>
+  <div id="zoom-indicator">📏 Distance: 2.5m</div>
   
   <div class="control-panel" id="control-panel">
     <div class="ctrl-btn" id="btn-rotate-left">◀</div>
@@ -245,6 +292,8 @@
     <div class="zoom-btn" id="btn-zoom-out">➖</div>
   </div>
   
+  <div class="reset-btn" id="btn-reset">⟳</div>
+  
   <script>
     (function() {
       const startBtn = document.getElementById('start-ar');
@@ -253,12 +302,35 @@
       const statusMsg = document.getElementById('status-message');
       const controlPanel = document.getElementById('control-panel');
       const zoomPanel = document.getElementById('zoom-panel');
+      const resetBtn = document.getElementById('btn-reset');
+      const zoomIndicator = document.getElementById('zoom-indicator');
       
       let arStarted = false;
       let modelRotationY = 0;
-      let currentScale = 0.5;  // Normal size
+      let currentDistance = 2.5;   // Start at 2.5 meters
       let modelEntity = null;
       let markerDetected = false;
+      
+      // EXTENDED RANGE - can go VERY FAR
+      const MIN_DISTANCE = 0.5;     // Closest (0.5m - huge)
+      const MAX_DISTANCE = 15.0;    // Farthest (15 meters - tiny pixel)
+      const DEFAULT_DISTANCE = 2.5;
+      
+      // Model height (Y position) - LOWERED
+      const MODEL_HEIGHT = -0.45;    // Lowered from -0.2 to -0.45
+      
+      function showDistanceFeedback() {
+        let distanceText = "";
+        if (currentDistance >= 8) distanceText = "📏 Very Far";
+        else if (currentDistance >= 4) distanceText = "📏 Far";
+        else if (currentDistance >= 1.5) distanceText = "📏 Medium";
+        else distanceText = "📏 Close";
+        zoomIndicator.textContent = `${distanceText} (${currentDistance.toFixed(1)}m)`;
+        zoomIndicator.style.opacity = '1';
+        setTimeout(() => {
+          zoomIndicator.style.opacity = '0';
+        }, 800);
+      }
       
       function startAR() {
         if (arStarted) return;
@@ -279,11 +351,11 @@
             <a-marker preset="hiro" id="hiro-marker">
             </a-marker>
             
-            <!-- Model container - normal size -->
+            <!-- Model container - LOWER HEIGHT and FAR distance -->
             <a-entity id="model-container" visible="false">
               <a-entity 
                 id="artifact-model"
-                position="0 0 0"
+                position="0 -0.45 -2.5"
                 rotation="0 0 0"
                 scale="0.5 0.5 0.5"
               >
@@ -312,20 +384,21 @@
                 modelContainer.setAttribute('visible', 'true');
               }
               
-              statusMsg.innerHTML = '✅ Model ready! Use ◀ ▶ to spin horizontally';
+              statusMsg.innerHTML = '✅ Model placed! Press ➖ to make it VERY FAR (small)';
               statusMsg.style.background = 'rgba(34, 197, 94, 0.3)';
               
               controlPanel.style.display = 'flex';
               zoomPanel.style.display = 'flex';
+              resetBtn.style.display = 'flex';
               
               setTimeout(() => {
                 modelEntity = document.querySelector('#artifact-model');
                 if (modelEntity) {
                   modelRotationY = 0;
-                  currentScale = 0.5;
-                  modelEntity.setAttribute('scale', { x: 0.5, y: 0.5, z: 0.5 });
+                  currentDistance = 2.5;
+                  modelEntity.setAttribute('position', { x: 0, y: MODEL_HEIGHT, z: -2.5 });
                   modelEntity.setAttribute('rotation', { x: 0, y: 0, z: 0 });
-                  console.log('✅ Model ready - Horizontal rotation enabled');
+                  console.log('✅ Model ready - Lowered height, distance:', currentDistance);
                   
                   setTimeout(() => {
                     statusMsg.style.opacity = '0';
@@ -343,54 +416,73 @@
           return modelEntity;
         }
         
-        // HORIZONTAL ROTATION - Only Y axis (left/right spin)
+        // ROTATION - Horizontal spin
         function rotateLeft() {
           const model = getModel();
           if (!model) return;
-          modelRotationY -= 15;  // Spin left 15 degrees
+          modelRotationY -= 15;
           model.setAttribute('rotation', {
-            x: 0,    // No vertical tilt
+            x: 0,
             y: modelRotationY,
-            z: 0     // No roll
+            z: 0
           });
-          console.log('🔄 Rotated LEFT to:', modelRotationY, 'degrees');
+          console.log('⬅️ Rotated to:', modelRotationY);
         }
         
         function rotateRight() {
           const model = getModel();
           if (!model) return;
-          modelRotationY += 15;  // Spin right 15 degrees
+          modelRotationY += 15;
           model.setAttribute('rotation', {
-            x: 0,    // No vertical tilt
+            x: 0,
             y: modelRotationY,
-            z: 0     // No roll
+            z: 0
           });
-          console.log('🔄 Rotated RIGHT to:', modelRotationY, 'degrees');
+          console.log('➡️ Rotated to:', modelRotationY);
         }
         
-        // ZOOM FUNCTIONS
-        function zoomIn() {
+        // MOVE FARTHER/CLOSER (zoom effect)
+        function moveCloser() {
           const model = getModel();
           if (!model) return;
-          currentScale = Math.min(currentScale + 0.05, 1.2);
-          model.setAttribute('scale', {
-            x: currentScale,
-            y: currentScale,
-            z: currentScale
+          currentDistance = Math.max(currentDistance - 0.2, MIN_DISTANCE);
+          model.setAttribute('position', {
+            x: 0,
+            y: MODEL_HEIGHT,
+            z: -currentDistance
           });
-          console.log('🔍 Zoom In to:', Math.round(currentScale * 100), '%');
+          console.log('📏 Moved closer to:', currentDistance, 'meters');
+          showDistanceFeedback();
         }
         
-        function zoomOut() {
+        function moveFarther() {
           const model = getModel();
           if (!model) return;
-          currentScale = Math.max(currentScale - 0.05, 0.2);
-          model.setAttribute('scale', {
-            x: currentScale,
-            y: currentScale,
-            z: currentScale
+          currentDistance = Math.min(currentDistance + 0.2, MAX_DISTANCE);
+          model.setAttribute('position', {
+            x: 0,
+            y: MODEL_HEIGHT,
+            z: -currentDistance
           });
-          console.log('🔍 Zoom Out to:', Math.round(currentScale * 100), '%');
+          console.log('📏 Moved farther to:', currentDistance, 'meters');
+          showDistanceFeedback();
+        }
+        
+        // RESET VIEW
+        function resetView() {
+          const model = getModel();
+          if (!model) return;
+          modelRotationY = 0;
+          currentDistance = DEFAULT_DISTANCE;
+          model.setAttribute('position', { x: 0, y: MODEL_HEIGHT, z: -DEFAULT_DISTANCE });
+          model.setAttribute('rotation', { x: 0, y: 0, z: 0 });
+          model.setAttribute('scale', { x: 0.5, y: 0.5, z: 0.5 });
+          console.log('🔄 Reset to', DEFAULT_DISTANCE, 'meters');
+          zoomIndicator.textContent = `🔄 Reset to ${DEFAULT_DISTANCE}m`;
+          zoomIndicator.style.opacity = '1';
+          setTimeout(() => {
+            zoomIndicator.style.opacity = '0';
+          }, 800);
         }
         
         // Attach button events
@@ -398,6 +490,7 @@
         const rightBtn = document.getElementById('btn-rotate-right');
         const zoomInBtn = document.getElementById('btn-zoom-in');
         const zoomOutBtn = document.getElementById('btn-zoom-out');
+        const resetViewBtn = document.getElementById('btn-reset');
         
         if (leftBtn) {
           leftBtn.addEventListener('click', rotateLeft);
@@ -416,18 +509,26 @@
         }
         
         if (zoomInBtn) {
-          zoomInBtn.addEventListener('click', zoomIn);
+          zoomInBtn.addEventListener('click', moveCloser);
           zoomInBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            zoomIn();
+            moveCloser();
           });
         }
         
         if (zoomOutBtn) {
-          zoomOutBtn.addEventListener('click', zoomOut);
+          zoomOutBtn.addEventListener('click', moveFarther);
           zoomOutBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            zoomOut();
+            moveFarther();
+          });
+        }
+        
+        if (resetViewBtn) {
+          resetViewBtn.addEventListener('click', resetView);
+          resetViewBtn.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            resetView();
           });
         }
         
