@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Working Controls</title>
+  <title>Subangan ARchive - Turntable Rotation</title>
   
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -120,7 +120,7 @@
       height: 100% !important;
     }
     
-    /* Control Panel - shows after marker is scanned */
+    /* Control Panel */
     .control-panel {
       position: fixed;
       bottom: 30px;
@@ -206,6 +206,22 @@
       pointer-events: none;
       transition: opacity 0.5s ease;
     }
+    
+    .turntable-hint {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      right: 20px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
+      padding: 8px 16px;
+      text-align: center;
+      color: #22c55e;
+      font-size: 12px;
+      z-index: 1001;
+      pointer-events: none;
+    }
   </style>
 </head>
 
@@ -216,15 +232,15 @@
       <p>Interactive digital archive with augmented reality</p>
       
       <div>
-        <span class="feature-badge">◀ ▶ Buttons to rotate</span>
-        <span class="feature-badge">➕ ➖ Buttons to zoom</span>
-        <span class="feature-badge">Model stays visible</span>
+        <span class="feature-badge">🔄 360° Turntable Rotation</span>
+        <span class="feature-badge">◀ ▶ Spin left/right</span>
+        <span class="feature-badge">➕ ➖ Zoom</span>
       </div>
       
       <div class="steps">
         <li><strong>1:</strong> Tap "Start AR" and allow camera</li>
         <li><strong>2:</strong> Scan the Hiro marker</li>
-        <li><strong>3:</strong> Model appears - use buttons to control!</li>
+        <li><strong>3:</strong> Use ◀ ▶ to spin the model 360°!</li>
       </div>
       
       <button class="btn" id="start-ar">🎯 Start AR Experience</button>
@@ -236,6 +252,8 @@
   </div>
   
   <div id="ar-container"></div>
+  
+  <div class="turntable-hint" id="turntable-hint">🔄 Turntable mode: Model spins around like a record player</div>
   
   <div id="status-message">📍 Scan Hiro marker to place model</div>
   
@@ -259,7 +277,7 @@
       const zoomPanel = document.getElementById('zoom-panel');
       
       let arStarted = false;
-      let modelRotationY = 0;
+      let modelRotationY = 0;    // This is the TURNTABLE rotation (left/right spin)
       let modelScale = 0.35;
       let modelEntity = null;
       let markerDetected = false;
@@ -273,7 +291,7 @@
           uiOverlay.style.display = 'none';
         }, 500);
         
-        // Inject AR scene - Standard marker (model only appears when marker detected)
+        // Inject AR scene
         arContainer.innerHTML = `
           <a-scene 
             embedded 
@@ -307,7 +325,7 @@
             if (!markerDetected) {
               markerDetected = true;
               console.log('✅ Hiro marker detected!');
-              statusMsg.innerHTML = '✅ Model placed! Use ◀ ▶ buttons to rotate';
+              statusMsg.innerHTML = '✅ 360° Turntable mode ACTIVE! Use ◀ ▶ to spin';
               statusMsg.style.background = 'rgba(34, 197, 94, 0.3)';
               
               // Show control panels
@@ -318,16 +336,18 @@
               setTimeout(() => {
                 modelEntity = document.querySelector('#artifact-model');
                 if (modelEntity) {
+                  // IMPORTANT: Make sure rotation is only on Y axis (turntable)
                   const rot = modelEntity.getAttribute('rotation');
                   modelRotationY = rot ? rot.y || 0 : 0;
                   modelScale = 0.35;
-                  console.log('✅ Model ready for controls');
+                  console.log('✅ Model ready - Turntable rotation on Y axis');
+                  console.log('   Current Y rotation:', modelRotationY);
                   
-                  statusMsg.innerHTML = '🎮 Use ◀ ▶ buttons to rotate | ➕ ➖ to zoom';
+                  statusMsg.innerHTML = '🔄 360° spin! Press ◀ to spin left, ▶ to spin right';
                   setTimeout(() => {
                     statusMsg.style.opacity = '0';
                     setTimeout(() => {
-                      statusMsg.innerHTML = '🎮 Buttons active';
+                      statusMsg.innerHTML = '🔄 Turntable active';
                       statusMsg.style.opacity = '1';
                       setTimeout(() => {
                         statusMsg.style.opacity = '0';
@@ -340,9 +360,7 @@
           });
           
           marker.addEventListener('markerLost', () => {
-            console.log('Marker lost - but model may still be visible in camera view');
-            statusMsg.innerHTML = '📌 Model fixed - use buttons to control';
-            statusMsg.style.background = 'rgba(0,0,0,0.7)';
+            console.log('Marker lost - model still rotatable');
           });
         }
         
@@ -354,20 +372,24 @@
           return modelEntity;
         }
         
-        // ROTATION FUNCTIONS
+        // TURNTABLE ROTATION FUNCTIONS - Only changes Y axis (horizontal spin)
         function rotateLeft() {
           const model = getModel();
           if (!model) {
             console.log('Model not found yet');
             return;
           }
+          // Subtract 15 degrees to spin LEFT (counter-clockwise)
           modelRotationY -= 15;
+          
+          // IMPORTANT: Only change the Y value, keep X and Z fixed
           model.setAttribute('rotation', {
-            x: -90,
-            y: modelRotationY,
-            z: 0
+            x: -90,           // Fixed: keeps model upright
+            y: modelRotationY, // Changes: this is the turntable spin!
+            z: 0              // Fixed: no roll
           });
-          console.log('Rotated to:', modelRotationY);
+          console.log('🔄 Spun LEFT to:', modelRotationY, 'degrees');
+          
           // Visual feedback
           const btn = document.getElementById('btn-rotate-left');
           btn.style.transform = 'scale(0.95)';
@@ -380,13 +402,18 @@
             console.log('Model not found yet');
             return;
           }
+          // Add 15 degrees to spin RIGHT (clockwise)
           modelRotationY += 15;
+          
+          // IMPORTANT: Only change the Y value, keep X and Z fixed
           model.setAttribute('rotation', {
-            x: -90,
-            y: modelRotationY,
-            z: 0
+            x: -90,           // Fixed: keeps model upright
+            y: modelRotationY, // Changes: this is the turntable spin!
+            z: 0              // Fixed: no roll
           });
-          console.log('Rotated to:', modelRotationY);
+          console.log('🔄 Spun RIGHT to:', modelRotationY, 'degrees');
+          
+          // Visual feedback
           const btn = document.getElementById('btn-rotate-right');
           btn.style.transform = 'scale(0.95)';
           setTimeout(() => { btn.style.transform = 'scale(1)'; }, 100);
@@ -462,7 +489,7 @@
         const scene = document.querySelector('a-scene');
         if (scene) {
           scene.addEventListener('loaded', () => {
-            console.log('✅ AR Scene loaded - Scan Hiro marker');
+            console.log('✅ AR Scene loaded - Turntable mode ready');
           });
           
           scene.addEventListener('arError', (e) => {
