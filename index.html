@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Final Working</title>
+  <title>Subangan ARchive - Small Model</title>
   
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -259,13 +259,13 @@
         <span class="feature-badge">🔄 360° Horizontal Spin</span>
         <span class="feature-badge">◀ ▶ Rotate</span>
         <span class="feature-badge">➕ ➖ Zoom</span>
-        <span class="feature-badge">🔄 Reset View</span>
+        <span class="feature-badge">🔄 Reset</span>
       </div>
       
       <div class="steps">
         <li><strong>1:</strong> Tap "Start AR" and allow camera</li>
         <li><strong>2:</strong> Scan the Hiro marker ONCE</li>
-        <li><strong>3:</strong> Use buttons to control the model!</li>
+        <li><strong>3:</strong> Model is now SMALL - use buttons to control!</li>
       </div>
       
       <button class="btn" id="start-ar">🎯 Start AR Experience</button>
@@ -279,7 +279,7 @@
   <div id="ar-container"></div>
   
   <div id="status-message">📍 Scan Hiro marker once to place model</div>
-  <div id="zoom-indicator">🔍 Zoom: 30%</div>
+  <div id="zoom-indicator">🔍 Zoom: 3%</div>
   
   <div class="control-panel" id="control-panel">
     <div class="ctrl-btn" id="btn-rotate-left">◀</div>
@@ -306,12 +306,13 @@
       
       let arStarted = false;
       let modelRotationY = 0;
-      let currentZoom = 0.12;  // START WITH VERY SMALL MODEL (12% of original)
+      let currentZoom = 0.03;  // START AT 3% - MUCH SMALLER!
       let modelEntity = null;
       let markerDetected = false;
       
-      const MIN_ZOOM = 0.08;   // 8% - very small
-      const MAX_ZOOM = 0.35;   // 35% - max size (was filling screen at 20%!)
+      // MUCH SMALLER RANGE
+      const MIN_ZOOM = 0.01;   // 1% - tiny
+      const MAX_ZOOM = 0.10;   // 10% - max size (still small)
       
       function showZoomFeedback() {
         zoomIndicator.textContent = `🔍 Zoom: ${Math.round(currentZoom * 100)}%`;
@@ -340,13 +341,13 @@
             <a-marker preset="hiro" id="hiro-marker">
             </a-marker>
             
-            <!-- Model container - starts hidden -->
+            <!-- Model container with TINY starting scale -->
             <a-entity id="model-container" visible="false">
               <a-entity 
                 id="artifact-model"
-                position="0 -0.2 0"
+                position="0 -0.15 0"
                 rotation="0 0 0"
-                scale="0.12 0.12 0.12"
+                scale="0.03 0.03 0.03"
               >
                 <a-gltf-model src="./artifact.glb"></a-gltf-model>
               </a-entity>
@@ -373,7 +374,7 @@
                 modelContainer.setAttribute('visible', 'true');
               }
               
-              statusMsg.innerHTML = '✅ Model placed! Use ◀ ▶ to rotate | ➕ ➖ to zoom';
+              statusMsg.innerHTML = '✅ Model placed! Very small size - use ➕ to zoom in';
               statusMsg.style.background = 'rgba(34, 197, 94, 0.3)';
               
               controlPanel.style.display = 'flex';
@@ -384,10 +385,10 @@
                 modelEntity = document.querySelector('#artifact-model');
                 if (modelEntity) {
                   modelRotationY = 0;
-                  currentZoom = 0.12;
-                  modelEntity.setAttribute('scale', { x: 0.12, y: 0.12, z: 0.12 });
+                  currentZoom = 0.03;
+                  modelEntity.setAttribute('scale', { x: 0.03, y: 0.03, z: 0.03 });
                   modelEntity.setAttribute('rotation', { x: 0, y: 0, z: 0 });
-                  console.log('✅ Model ready - Scale: 12%, Rotation: 0°');
+                  console.log('✅ Model ready - Scale: 3%');
                   
                   setTimeout(() => {
                     statusMsg.style.opacity = '0';
@@ -415,7 +416,7 @@
             y: modelRotationY,
             z: 0
           });
-          console.log('⬅️ Rotated Left to:', modelRotationY);
+          console.log('⬅️ Rotated to:', modelRotationY);
         }
         
         function rotateRight() {
@@ -427,14 +428,14 @@
             y: modelRotationY,
             z: 0
           });
-          console.log('➡️ Rotated Right to:', modelRotationY);
+          console.log('➡️ Rotated to:', modelRotationY);
         }
         
-        // ZOOM FUNCTIONS - Proper scaling
+        // ZOOM - Much smaller increments
         function zoomIn() {
           const model = getModel();
           if (!model) return;
-          currentZoom = Math.min(currentZoom + 0.02, MAX_ZOOM);
+          currentZoom = Math.min(currentZoom + 0.005, MAX_ZOOM);
           model.setAttribute('scale', {
             x: currentZoom,
             y: currentZoom,
@@ -447,7 +448,7 @@
         function zoomOut() {
           const model = getModel();
           if (!model) return;
-          currentZoom = Math.max(currentZoom - 0.02, MIN_ZOOM);
+          currentZoom = Math.max(currentZoom - 0.005, MIN_ZOOM);
           model.setAttribute('scale', {
             x: currentZoom,
             y: currentZoom,
@@ -462,11 +463,11 @@
           const model = getModel();
           if (!model) return;
           modelRotationY = 0;
-          currentZoom = 0.12;
+          currentZoom = 0.03;
           model.setAttribute('rotation', { x: 0, y: 0, z: 0 });
-          model.setAttribute('scale', { x: 0.12, y: 0.12, z: 0.12 });
-          console.log('🔄 Reset view');
-          zoomIndicator.textContent = '🔄 View Reset';
+          model.setAttribute('scale', { x: 0.03, y: 0.03, z: 0.03 });
+          console.log('🔄 Reset to 3% size');
+          zoomIndicator.textContent = '🔄 Reset to 3%';
           zoomIndicator.style.opacity = '1';
           setTimeout(() => {
             zoomIndicator.style.opacity = '0';
