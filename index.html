@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Final</title>
+  <title>Subangan ARchive - Hold Buttons</title>
   
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -132,8 +132,8 @@
     }
     
     .ctrl-btn {
-      width: 70px;
-      height: 70px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       background: rgba(0, 0, 0, 0.7);
       backdrop-filter: blur(10px);
@@ -141,17 +141,18 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 36px;
+      font-size: 40px;
       font-weight: bold;
       color: #22c55e;
       cursor: pointer;
       user-select: none;
       box-shadow: 0 0 20px rgba(34, 197, 94, 0.3);
+      transition: all 0.05s ease;
     }
     
     .ctrl-btn:active {
-      transform: scale(0.92);
-      background: rgba(34, 197, 94, 0.3);
+      transform: scale(0.95);
+      background: rgba(34, 197, 94, 0.4);
     }
     
     .zoom-panel {
@@ -166,8 +167,8 @@
     }
     
     .zoom-btn {
-      width: 55px;
-      height: 55px;
+      width: 65px;
+      height: 65px;
       border-radius: 50%;
       background: rgba(0, 0, 0, 0.7);
       backdrop-filter: blur(10px);
@@ -175,23 +176,24 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 28px;
+      font-size: 32px;
       font-weight: bold;
       color: #22c55e;
       cursor: pointer;
+      transition: all 0.05s ease;
     }
     
     .zoom-btn:active {
-      transform: scale(0.92);
-      background: rgba(34, 197, 94, 0.3);
+      transform: scale(0.95);
+      background: rgba(34, 197, 94, 0.4);
     }
     
     .reset-btn {
       position: fixed;
       left: 20px;
       bottom: 130px;
-      width: 55px;
-      height: 55px;
+      width: 65px;
+      height: 65px;
       border-radius: 50%;
       background: rgba(0, 0, 0, 0.7);
       backdrop-filter: blur(10px);
@@ -199,7 +201,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
+      font-size: 24px;
       font-weight: bold;
       color: #22c55e;
       cursor: pointer;
@@ -208,8 +210,8 @@
     }
     
     .reset-btn:active {
-      transform: scale(0.92);
-      background: rgba(34, 197, 94, 0.3);
+      transform: scale(0.95);
+      background: rgba(34, 197, 94, 0.4);
     }
     
     #status-message {
@@ -246,6 +248,14 @@
       transition: opacity 0.2s ease;
       white-space: nowrap;
     }
+    
+    /* Hold button hint */
+    .hold-hint {
+      font-size: 10px;
+      margin-top: 5px;
+      color: #aaa;
+      text-align: center;
+    }
   </style>
 </head>
 
@@ -258,15 +268,15 @@
       <div>
         <span class="feature-badge">🔄 360° Horizontal Spin</span>
         <span class="feature-badge">◀ ▶ Rotate</span>
-        <span class="feature-badge">➕ ➖ Move Farther/Closer</span>
-        <span class="feature-badge">📏 Can go VERY FAR</span>
+        <span class="feature-badge">➕ ➖ HOLD to move far/closer</span>
+        <span class="feature-badge">📏 Very low position</span>
       </div>
       
       <div class="steps">
         <li><strong>1:</strong> Tap "Start AR" and allow camera</li>
         <li><strong>2:</strong> Scan the Hiro marker ONCE</li>
-        <li><strong>3:</strong> Press ➖ to make model SMALLER (farther away)</li>
-        <li><strong>4:</strong> Press ⟳ to reset</li>
+        <li><strong>3:</strong> <strong>HOLD ➖ button</strong> to make model VERY FAR & SMALL</li>
+        <li><strong>4:</strong> <strong>HOLD ◀ or ▶</strong> to rotate continuously</li>
       </div>
       
       <button class="btn" id="start-ar">🎯 Start AR Experience</button>
@@ -288,8 +298,8 @@
   </div>
   
   <div class="zoom-panel" id="zoom-panel">
-    <div class="zoom-btn" id="btn-zoom-in">➕</div>
-    <div class="zoom-btn" id="btn-zoom-out">➖</div>
+    <div class="zoom-btn" id="btn-move-closer">➕</div>
+    <div class="zoom-btn" id="btn-move-farther">➖</div>
   </div>
   
   <div class="reset-btn" id="btn-reset">⟳</div>
@@ -311,18 +321,25 @@
       let modelEntity = null;
       let markerDetected = false;
       
+      // Auto-repeat intervals
+      let rotateLeftInterval = null;
+      let rotateRightInterval = null;
+      let moveCloserInterval = null;
+      let moveFartherInterval = null;
+      
       // EXTENDED RANGE - can go VERY FAR
       const MIN_DISTANCE = 0.5;     // Closest (0.5m - huge)
-      const MAX_DISTANCE = 15.0;    // Farthest (15 meters - tiny pixel)
+      const MAX_DISTANCE = 20.0;    // Farthest (20 meters - tiny dot)
       const DEFAULT_DISTANCE = 2.5;
       
-      // Model height (Y position) - LOWERED
-      const MODEL_HEIGHT = -0.45;    // Lowered from -0.2 to -0.45
+      // Model height (Y position) - MUCH LOWER
+      const MODEL_HEIGHT = -0.6;     // Lowered from -0.45 to -0.6
       
       function showDistanceFeedback() {
         let distanceText = "";
-        if (currentDistance >= 8) distanceText = "📏 Very Far";
-        else if (currentDistance >= 4) distanceText = "📏 Far";
+        if (currentDistance >= 10) distanceText = "📏 Extremely Far";
+        else if (currentDistance >= 6) distanceText = "📏 Very Far";
+        else if (currentDistance >= 3) distanceText = "📏 Far";
         else if (currentDistance >= 1.5) distanceText = "📏 Medium";
         else distanceText = "📏 Close";
         zoomIndicator.textContent = `${distanceText} (${currentDistance.toFixed(1)}m)`;
@@ -351,11 +368,11 @@
             <a-marker preset="hiro" id="hiro-marker">
             </a-marker>
             
-            <!-- Model container - LOWER HEIGHT and FAR distance -->
+            <!-- Model container - MUCH LOWER HEIGHT -->
             <a-entity id="model-container" visible="false">
               <a-entity 
                 id="artifact-model"
-                position="0 -0.45 -2.5"
+                position="0 -0.6 -2.5"
                 rotation="0 0 0"
                 scale="0.5 0.5 0.5"
               >
@@ -384,7 +401,7 @@
                 modelContainer.setAttribute('visible', 'true');
               }
               
-              statusMsg.innerHTML = '✅ Model placed! Press ➖ to make it VERY FAR (small)';
+              statusMsg.innerHTML = '✅ HOLD buttons for continuous action! Press ➖ to go VERY FAR';
               statusMsg.style.background = 'rgba(34, 197, 94, 0.3)';
               
               controlPanel.style.display = 'flex';
@@ -398,11 +415,11 @@
                   currentDistance = 2.5;
                   modelEntity.setAttribute('position', { x: 0, y: MODEL_HEIGHT, z: -2.5 });
                   modelEntity.setAttribute('rotation', { x: 0, y: 0, z: 0 });
-                  console.log('✅ Model ready - Lowered height, distance:', currentDistance);
+                  console.log('✅ Model ready - Height:', MODEL_HEIGHT, 'Distance:', currentDistance);
                   
                   setTimeout(() => {
                     statusMsg.style.opacity = '0';
-                  }, 4000);
+                  }, 5000);
                 }
               }, 500);
             }
@@ -416,7 +433,7 @@
           return modelEntity;
         }
         
-        // ROTATION - Horizontal spin
+        // ROTATION FUNCTIONS
         function rotateLeft() {
           const model = getModel();
           if (!model) return;
@@ -426,7 +443,6 @@
             y: modelRotationY,
             z: 0
           });
-          console.log('⬅️ Rotated to:', modelRotationY);
         }
         
         function rotateRight() {
@@ -438,34 +454,35 @@
             y: modelRotationY,
             z: 0
           });
-          console.log('➡️ Rotated to:', modelRotationY);
         }
         
-        // MOVE FARTHER/CLOSER (zoom effect)
+        // DISTANCE FUNCTIONS
         function moveCloser() {
           const model = getModel();
           if (!model) return;
-          currentDistance = Math.max(currentDistance - 0.2, MIN_DISTANCE);
-          model.setAttribute('position', {
-            x: 0,
-            y: MODEL_HEIGHT,
-            z: -currentDistance
-          });
-          console.log('📏 Moved closer to:', currentDistance, 'meters');
-          showDistanceFeedback();
+          if (currentDistance > MIN_DISTANCE) {
+            currentDistance = Math.max(currentDistance - 0.1, MIN_DISTANCE);
+            model.setAttribute('position', {
+              x: 0,
+              y: MODEL_HEIGHT,
+              z: -currentDistance
+            });
+            showDistanceFeedback();
+          }
         }
         
         function moveFarther() {
           const model = getModel();
           if (!model) return;
-          currentDistance = Math.min(currentDistance + 0.2, MAX_DISTANCE);
-          model.setAttribute('position', {
-            x: 0,
-            y: MODEL_HEIGHT,
-            z: -currentDistance
-          });
-          console.log('📏 Moved farther to:', currentDistance, 'meters');
-          showDistanceFeedback();
+          if (currentDistance < MAX_DISTANCE) {
+            currentDistance = Math.min(currentDistance + 0.1, MAX_DISTANCE);
+            model.setAttribute('position', {
+              x: 0,
+              y: MODEL_HEIGHT,
+              z: -currentDistance
+            });
+            showDistanceFeedback();
+          }
         }
         
         // RESET VIEW
@@ -485,43 +502,112 @@
           }, 800);
         }
         
-        // Attach button events
+        // HOLD BUTTON HANDLERS
+        function startRotateLeft() {
+          if (rotateLeftInterval) clearInterval(rotateLeftInterval);
+          rotateLeft();
+          rotateLeftInterval = setInterval(rotateLeft, 100);
+        }
+        
+        function stopRotateLeft() {
+          if (rotateLeftInterval) {
+            clearInterval(rotateLeftInterval);
+            rotateLeftInterval = null;
+          }
+        }
+        
+        function startRotateRight() {
+          if (rotateRightInterval) clearInterval(rotateRightInterval);
+          rotateRight();
+          rotateRightInterval = setInterval(rotateRight, 100);
+        }
+        
+        function stopRotateRight() {
+          if (rotateRightInterval) {
+            clearInterval(rotateRightInterval);
+            rotateRightInterval = null;
+          }
+        }
+        
+        function startMoveCloser() {
+          if (moveCloserInterval) clearInterval(moveCloserInterval);
+          moveCloser();
+          moveCloserInterval = setInterval(moveCloser, 80);
+        }
+        
+        function stopMoveCloser() {
+          if (moveCloserInterval) {
+            clearInterval(moveCloserInterval);
+            moveCloserInterval = null;
+          }
+        }
+        
+        function startMoveFarther() {
+          if (moveFartherInterval) clearInterval(moveFartherInterval);
+          moveFarther();
+          moveFartherInterval = setInterval(moveFarther, 80);
+        }
+        
+        function stopMoveFarther() {
+          if (moveFartherInterval) {
+            clearInterval(moveFartherInterval);
+            moveFartherInterval = null;
+          }
+        }
+        
+        // Attach button events with HOLD functionality
         const leftBtn = document.getElementById('btn-rotate-left');
         const rightBtn = document.getElementById('btn-rotate-right');
-        const zoomInBtn = document.getElementById('btn-zoom-in');
-        const zoomOutBtn = document.getElementById('btn-zoom-out');
+        const moveCloserBtn = document.getElementById('btn-move-closer');
+        const moveFartherBtn = document.getElementById('btn-move-farther');
         const resetViewBtn = document.getElementById('btn-reset');
         
         if (leftBtn) {
-          leftBtn.addEventListener('click', rotateLeft);
+          leftBtn.addEventListener('mousedown', startRotateLeft);
+          leftBtn.addEventListener('mouseup', stopRotateLeft);
+          leftBtn.addEventListener('mouseleave', stopRotateLeft);
           leftBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            rotateLeft();
+            startRotateLeft();
           });
+          leftBtn.addEventListener('touchend', stopRotateLeft);
+          leftBtn.addEventListener('touchcancel', stopRotateLeft);
         }
         
         if (rightBtn) {
-          rightBtn.addEventListener('click', rotateRight);
+          rightBtn.addEventListener('mousedown', startRotateRight);
+          rightBtn.addEventListener('mouseup', stopRotateRight);
+          rightBtn.addEventListener('mouseleave', stopRotateRight);
           rightBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            rotateRight();
+            startRotateRight();
           });
+          rightBtn.addEventListener('touchend', stopRotateRight);
+          rightBtn.addEventListener('touchcancel', stopRotateRight);
         }
         
-        if (zoomInBtn) {
-          zoomInBtn.addEventListener('click', moveCloser);
-          zoomInBtn.addEventListener('touchstart', (e) => {
+        if (moveCloserBtn) {
+          moveCloserBtn.addEventListener('mousedown', startMoveCloser);
+          moveCloserBtn.addEventListener('mouseup', stopMoveCloser);
+          moveCloserBtn.addEventListener('mouseleave', stopMoveCloser);
+          moveCloserBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            moveCloser();
+            startMoveCloser();
           });
+          moveCloserBtn.addEventListener('touchend', stopMoveCloser);
+          moveCloserBtn.addEventListener('touchcancel', stopMoveCloser);
         }
         
-        if (zoomOutBtn) {
-          zoomOutBtn.addEventListener('click', moveFarther);
-          zoomOutBtn.addEventListener('touchstart', (e) => {
+        if (moveFartherBtn) {
+          moveFartherBtn.addEventListener('mousedown', startMoveFarther);
+          moveFartherBtn.addEventListener('mouseup', stopMoveFarther);
+          moveFartherBtn.addEventListener('mouseleave', stopMoveFarther);
+          moveFartherBtn.addEventListener('touchstart', (e) => {
             e.preventDefault();
-            moveFarther();
+            startMoveFarther();
           });
+          moveFartherBtn.addEventListener('touchend', stopMoveFarther);
+          moveFartherBtn.addEventListener('touchcancel', stopMoveFarther);
         }
         
         if (resetViewBtn) {
@@ -535,7 +621,7 @@
         const scene = document.querySelector('a-scene');
         if (scene) {
           scene.addEventListener('loaded', () => {
-            console.log('✅ AR Scene loaded');
+            console.log('✅ AR Scene loaded - HOLD buttons work!');
           });
           
           scene.addEventListener('arError', (e) => {
