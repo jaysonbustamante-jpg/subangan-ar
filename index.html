@@ -9,8 +9,9 @@
     <!-- A-Frame (3D / scene graph) -->
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
 
-    <!-- MindAR for image tracking (replaces AR.js for QR code tracking) -->
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+    <!-- AR.js for A-Frame (marker tracking via camera) -->
+    <!-- Use a versioned CDN URL for more predictable GitHub Pages deployments. -->
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
 
     <style>
       :root {
@@ -319,7 +320,7 @@
             <div id="logo" aria-hidden="true"></div>
             <div>
               <h1>Subangan ARchive System</h1>
-              <div id="tag">Image-based AR archive prototype</div>
+              <div id="tag">Marker-based AR archive prototype</div>
             </div>
           </div>
         </div>
@@ -327,7 +328,7 @@
         <div id="hero">
           <div id="heroTitle">Explore artifacts through AR</div>
           <p id="heroSub">
-            Scan a QR code to open this page, then tap <b>Start AR</b> to enable your camera. Point the camera at the QR code image to see the 3D model overlay.
+            Scan a QR code to open this page, then tap <b>Start AR</b> to enable your camera. When the marker is detected, a 3D model appears on your screen.
           </p>
         </div>
 
@@ -336,8 +337,8 @@
             <h2>Quick start</h2>
             <ul id="steps">
               <li class="step"><div class="badge">1</div><div><b>Tap Start AR</b> and allow camera access.</div></li>
-              <li class="step"><div class="badge">2</div><div>Point the camera at the <b>QR code image</b> (printed or on another screen).</div></li>
-              <li class="step"><div class="badge">3</div><div>The <b>3D artifact</b> appears on top of the QR code.</div></li>
+              <li class="step"><div class="badge">2</div><div>Point the camera at the <b>Hiro marker</b> (printed or on another screen).</div></li>
+              <li class="step"><div class="badge">3</div><div>The <b>3D artifact</b> appears on top of the marker.</div></li>
             </ul>
           </div>
           <div class="panel">
@@ -351,11 +352,11 @@
               <button id="start" type="button">Start AR</button>
               <a
                 id="markerLink"
-                href="./qr-code.png"
+                href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                View QR Code
+                View Marker
               </a>
             </div>
             <div id="error"></div>
@@ -368,7 +369,7 @@
     <div id="ar-root"></div>
 
     <div id="hint">
-      <b>Need the QR code?</b> ./qr-code.png
+      <b>Need the marker?</b> https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png
     </div>
 
     <script>
@@ -387,21 +388,25 @@
         }
 
         function injectARScene() {
-          // Image-based AR prototype using MindAR.
-          // - Tracks a QR code image (user provides qr-target.mind).
-          // - Shows a glTF model when the image is detected.
+          // Marker-based AR prototype.
+          // - Uses the built-in "hiro" marker.
+          // - Shows a glTF model when the marker is detected.
           const isMobile =
             (navigator.userAgentData && navigator.userAgentData.mobile) ||
             /Android|iPhone|iPad|iPod|Mobi/i.test(navigator.userAgent);
+
+          const arjsAttr = isMobile
+            ? 'sourceType: webcam; facingMode: environment; debugUIEnabled: false;'
+            : 'sourceType: webcam; debugUIEnabled: false;';
 
           arRoot.innerHTML = `
             <a-scene
               embedded
               vr-mode-ui="enabled: false"
               renderer="antialias: true; alpha: true"
-              mindar-image="imageTargetSrc: ./qr-target.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;"
+              arjs="${arjsAttr}"
             >
-              <a-anchor targetIndex="0">
+              <a-marker preset="hiro">
                 <a-entity position="0 0 0">
                   <a-gltf-model
                     src="./artifact.glb"
@@ -417,7 +422,7 @@
                     color="#FFFFFF"
                   ></a-text>
                 </a-entity>
-              </a-anchor>
+              </a-marker>
               <a-entity camera></a-entity>
             </a-scene>
           `;
