@@ -3,19 +3,13 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Working Controls</title>
+  <title>Subangan ARchive - Working Final</title>
   
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   
   <!-- AR.js -->
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
-  
-  <!-- SUPER HANDS - Proven touch controls library -->
-  <script src="https://unpkg.com/super-hands@3.1.0/dist/super-hands.min.js"></script>
-  
-  <!-- A-Frame Events for better touch -->
-  <script src="https://unpkg.com/aframe-event-set-component@4.0.1/dist/aframe-event-set-component.min.js"></script>
 
   <style>
     body {
@@ -70,6 +64,11 @@
       cursor: pointer;
       margin-top: 16px;
       transition: transform 0.2s, box-shadow 0.2s;
+    }
+    
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
     }
     
     .steps {
@@ -133,8 +132,7 @@
       padding: 12px 20px;
       text-align: center;
       color: #22c55e;
-      font-size: 16px;
-      font-weight: bold;
+      font-size: 14px;
       z-index: 1001;
       pointer-events: none;
       transition: opacity 1s ease;
@@ -148,21 +146,20 @@
       background: rgba(0,0,0,0.6);
       backdrop-filter: blur(8px);
       border-radius: 40px;
-      padding: 10px 24px;
+      padding: 8px 20px;
       color: white;
-      font-size: 15px;
+      font-size: 13px;
       z-index: 1001;
       display: flex;
-      gap: 20px;
+      gap: 15px;
       align-items: center;
       white-space: nowrap;
       pointer-events: none;
       transition: opacity 1s ease;
-      font-weight: 500;
     }
     
     .arrow {
-      font-size: 22px;
+      font-size: 18px;
       animation: pulse 1.5s ease-in-out infinite;
     }
     
@@ -179,11 +176,6 @@
       0%, 100% { opacity: 0.5; transform: translateX(0); }
       50% { opacity: 1; transform: translateX(-5px); }
     }
-    
-    /* Make model touchable */
-    [data-raycastable] {
-      cursor: pointer;
-    }
   </style>
 </head>
 
@@ -196,21 +188,21 @@
       <div>
         <span class="feature-badge">↔️ Swipe left/right to rotate</span>
         <span class="feature-badge">✌️ Pinch to zoom</span>
-        <span class="feature-badge">📏 Smaller model size</span>
+        <span class="feature-badge">📏 Smaller model</span>
       </div>
       
       <div class="steps">
         <li><strong>1:</strong> Tap "Start AR"</li>
         <li><strong>2:</strong> Allow camera access</li>
         <li><strong>3:</strong> Scan the Hiro marker</li>
-        <li><strong>4:</strong> 👆 <strong>Tap and drag LEFT/RIGHT</strong> on the 3D model</li>
+        <li><strong>4:</strong> 👆 <strong>Drag LEFT/RIGHT</strong> on the 3D model to rotate</li>
       </div>
       
       <button class="btn" id="start-ar">🎯 Start AR Experience</button>
       
       <div class="marker-box">
         📌 <strong>Hiro Marker</strong> - <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Tap to download/print</a><br>
-        💡 <strong>Tip:</strong> Touch the MODEL itself, then drag left/right. Model is now 40% smaller.
+        💡 <strong>Tip:</strong> Touch the MODEL directly, then drag left/right
       </div>
     </div>
   </div>
@@ -224,6 +216,8 @@
       const arContainer = document.getElementById('ar-container');
       
       let arStarted = false;
+      let rotationEnabled = false;
+      let currentYRotation = 0;
       
       function startAR() {
         if (arStarted) return;
@@ -234,33 +228,13 @@
           uiOverlay.style.display = 'none';
         }, 500);
         
-        // Add instruction overlay
+        // Add instruction overlay (NO ALERTS!)
         const instruction = document.createElement('div');
         instruction.id = 'instruction';
-        instruction.innerHTML = '🔍 MODEL DETECTED! 👆 Touch the model and DRAG LEFT/RIGHT to rotate 🔄';
+        instruction.innerHTML = '🔍 Point camera at HIRO marker to see the model';
         document.body.appendChild(instruction);
         
-        // Add rotating indicator with arrows
-        const indicator = document.createElement('div');
-        indicator.id = 'rotate-indicator';
-        indicator.innerHTML = `
-          <span class="arrow arrow-left">◀</span>
-          <span>👆 DRAG ON MODEL 👆</span>
-          <span class="arrow">▶</span>
-        `;
-        document.body.appendChild(indicator);
-        
-        // Auto-hide indicators after 6 seconds
-        setTimeout(() => {
-          instruction.style.opacity = '0';
-          indicator.style.opacity = '0';
-          setTimeout(() => {
-            if (instruction.parentNode) instruction.remove();
-            if (indicator.parentNode) indicator.remove();
-          }, 1000);
-        }, 6000);
-        
-        // MODEL SIZE: scale="0.4 0.4 0.4" = 40% of original size
+        // Inject AR scene
         arContainer.innerHTML = `
           <a-scene 
             embedded 
@@ -269,80 +243,196 @@
             renderer="logarithmicDepthBuffer: true; antialias: true"
           >
             <a-marker preset="hiro" id="ar-marker">
-              <!-- 
-                SMALLER MODEL: scale 0.4 = 40% of original size
-                FIXED POSITION: 0 0 0 = sits ON the marker
-                SUPER-HANDS: adds drag, pinch, and rotate gestures
-              -->
               <a-entity 
                 id="artifact-model"
                 position="0 0 0"
                 rotation="-90 0 0"
-                scale="0.4 0.4 0.4"
-                super-hands="hand: left"
-                raycaster="objects: [data-raycastable]"
-                data-raycastable
+                scale="0.35 0.35 0.35"
               >
                 <!-- Your 3D model -->
                 <a-gltf-model src="./artifact.glb"></a-gltf-model>
-                
-                <!-- Invisible sphere to make touch area bigger (makes it easier to tap) -->
-                <a-sphere 
-                  radius="0.8" 
-                  opacity="0" 
-                  visible="false"
-                  data-raycastable
-                ></a-sphere>
               </a-entity>
             </a-marker>
             
             <a-entity camera></a-entity>
             
             <!-- Lighting -->
-            <a-entity light="type: ambient; color: #ffffff; intensity: 0.7"></a-entity>
-            <a-entity light="type: directional; color: #ffffff; intensity: 1; position: 2 5 3"></a-entity>
+            <a-entity light="type: ambient; color: #ffffff; intensity: 0.6"></a-entity>
+            <a-entity light="type: directional; color: #ffffff; intensity: 0.9; position: 2 5 3"></a-entity>
             <a-entity light="type: directional; color: #ffeedd; intensity: 0.5; position: -2 3 4"></a-entity>
           </a-scene>
         `;
         
-        // Wait for model to load and add touch debug
-        setTimeout(() => {
-          const modelEntity = document.querySelector('#artifact-model');
-          if (modelEntity) {
-            console.log('✅ Model found! Size: 0.4x normal');
+        // Wait for marker to be detected, THEN show rotation instructions
+        const marker = document.querySelector('#ar-marker');
+        if (marker) {
+          marker.addEventListener('markerFound', () => {
+            console.log('✅ HIRO MARKER FOUND! Model should appear');
             
-            // Add a click/touch listener to confirm it's working
-            modelEntity.addEventListener('click', () => {
-              console.log('🎉 MODEL CLICKED! Controls are working!');
-              // Visual feedback - flash green
-              modelEntity.setAttribute('material', 'emissive', '#22c55e');
+            // Update instruction
+            instruction.innerHTML = '✅ MODEL DETECTED! 👆 Drag LEFT/RIGHT on the model to rotate';
+            
+            // Show rotate indicator
+            const indicator = document.createElement('div');
+            indicator.id = 'rotate-indicator';
+            indicator.innerHTML = `
+              <span class="arrow arrow-left">◀</span>
+              <span>👆 DRAG ON MODEL 👆</span>
+              <span class="arrow">▶</span>
+            `;
+            document.body.appendChild(indicator);
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+              if (indicator.parentNode) {
+                indicator.style.opacity = '0';
+                setTimeout(() => indicator.remove(), 1000);
+              }
+              instruction.innerHTML = '↔️ Swipe left/right on the model to rotate | Pinch to zoom';
               setTimeout(() => {
-                modelEntity.setAttribute('material', 'emissive', '#000000');
-              }, 200);
+                instruction.style.opacity = '0';
+                setTimeout(() => instruction.remove(), 1000);
+              }, 4000);
+            }, 5000);
+            
+            // Enable rotation controls ONCE model is visible
+            enableRotationControls();
+          });
+          
+          marker.addEventListener('markerLost', () => {
+            console.log('👋 Marker lost - model hidden');
+          });
+        }
+        
+        function enableRotationControls() {
+          setTimeout(() => {
+            const modelEntity = document.querySelector('#artifact-model');
+            if (!modelEntity) {
+              console.log('Model not ready, retrying...');
+              setTimeout(enableRotationControls, 1000);
+              return;
+            }
+            
+            console.log('✅ ENABLING ROTATION CONTROLS');
+            
+            let startX = 0;
+            let startRotationY = 0;
+            let isDragging = false;
+            
+            // Get initial rotation
+            const initRot = modelEntity.getAttribute('rotation');
+            currentYRotation = initRot ? initRot.y || 0 : 0;
+            
+            // Touch start
+            modelEntity.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX;
+                startRotationY = currentYRotation;
+                console.log('Touch start - rotation enabled');
+              }
+            }, { passive: false });
+            
+            // Touch move
+            modelEntity.addEventListener('touchmove', (e) => {
+              if (!isDragging) return;
+              e.preventDefault();
+              e.stopPropagation();
+              
+              if (e.touches.length === 1) {
+                const deltaX = e.touches[0].clientX - startX;
+                const newRotY = startRotationY + (deltaX * 0.8);
+                
+                modelEntity.setAttribute('rotation', {
+                  x: -90,
+                  y: newRotY,
+                  z: 0
+                });
+                currentYRotation = newRotY;
+              }
+            }, { passive: false });
+            
+            // Touch end
+            modelEntity.addEventListener('touchend', () => {
+              isDragging = false;
             });
             
-            modelEntity.addEventListener('touchstart', () => {
-              console.log('🖱️ MODEL TOUCHED!');
+            modelEntity.addEventListener('touchcancel', () => {
+              isDragging = false;
             });
             
-            alert('✅ Model loaded! Try touching it!');
-          } else {
-            console.log('❌ Model not found');
-          }
-        }, 3000);
+            // Mouse support for testing
+            modelEntity.addEventListener('mousedown', (e) => {
+              e.preventDefault();
+              isDragging = true;
+              startX = e.clientX;
+              startRotationY = currentYRotation;
+            });
+            
+            window.addEventListener('mousemove', (e) => {
+              if (!isDragging) return;
+              const deltaX = e.clientX - startX;
+              const newRotY = startRotationY + (deltaX * 0.8);
+              modelEntity.setAttribute('rotation', {
+                x: -90,
+                y: newRotY,
+                z: 0
+              });
+              currentYRotation = newRotY;
+            });
+            
+            window.addEventListener('mouseup', () => {
+              isDragging = false;
+            });
+            
+            // Pinch to zoom
+            let initialDistance = 0;
+            let initialScale = 0.35;
+            
+            const getDistance = (touches) => {
+              const dx = touches[0].clientX - touches[1].clientX;
+              const dy = touches[0].clientY - touches[1].clientY;
+              return Math.sqrt(dx * dx + dy * dy);
+            };
+            
+            modelEntity.addEventListener('touchstart', (e) => {
+              if (e.touches.length === 2) {
+                e.preventDefault();
+                initialDistance = getDistance(e.touches);
+                const currScale = modelEntity.getAttribute('scale');
+                initialScale = currScale ? currScale.x : 0.35;
+              }
+            });
+            
+            modelEntity.addEventListener('touchmove', (e) => {
+              if (e.touches.length === 2) {
+                e.preventDefault();
+                const newDistance = getDistance(e.touches);
+                let scale = initialScale * (newDistance / initialDistance);
+                scale = Math.min(Math.max(scale, 0.2), 2.0);
+                modelEntity.setAttribute('scale', {
+                  x: scale,
+                  y: scale,
+                  z: scale
+                });
+              }
+            });
+            
+            console.log('✅ Rotation controls ready - drag left/right on model');
+          }, 500);
+        }
         
         const scene = document.querySelector('a-scene');
         if (scene) {
           scene.addEventListener('loaded', () => {
-            console.log('✅ AR Scene loaded');
+            console.log('✅ AR Scene loaded - Scan the Hiro marker');
           });
           
           scene.addEventListener('arError', (e) => {
             console.error('❌ AR Error:', e.detail);
-            alert('Camera error. Make sure you:\n1. Allowed camera permission\n2. Are on HTTPS\n3. No other app using camera');
-            uiOverlay.style.display = 'flex';
-            uiOverlay.classList.remove('hidden');
-            arStarted = false;
+            instruction.innerHTML = '❌ Camera error. Please refresh and allow camera permission.';
           });
         }
       }
