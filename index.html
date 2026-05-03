@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Turntable AR</title>
+  <title>Subangan ARchive - Fixed Controls</title>
   
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -121,13 +121,14 @@
       bottom: 20px;
       left: 20px;
       right: 20px;
-      background: rgba(0,0,0,0.6);
+      background: rgba(0,0,0,0.7);
       backdrop-filter: blur(8px);
       border-radius: 30px;
-      padding: 10px 20px;
+      padding: 12px 20px;
       text-align: center;
-      color: white;
-      font-size: 14px;
+      color: #22c55e;
+      font-size: 16px;
+      font-weight: bold;
       z-index: 1001;
       pointer-events: none;
       transition: opacity 1s ease;
@@ -135,26 +136,27 @@
     
     #rotate-indicator {
       position: fixed;
-      bottom: 80px;
+      bottom: 90px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.6);
       backdrop-filter: blur(8px);
       border-radius: 40px;
-      padding: 8px 20px;
+      padding: 10px 24px;
       color: white;
-      font-size: 14px;
+      font-size: 15px;
       z-index: 1001;
       display: flex;
-      gap: 15px;
+      gap: 20px;
       align-items: center;
       white-space: nowrap;
       pointer-events: none;
       transition: opacity 1s ease;
+      font-weight: 500;
     }
     
     .arrow {
-      font-size: 20px;
+      font-size: 22px;
       animation: pulse 1.5s ease-in-out infinite;
     }
     
@@ -183,21 +185,21 @@
       <div>
         <span class="feature-badge">↔️ Swipe left/right to rotate</span>
         <span class="feature-badge">✌️ Pinch to zoom</span>
-        <span class="feature-badge">📌 Model stays on surface</span>
+        <span class="feature-badge">📌 Model on marker</span>
       </div>
       
       <div class="steps">
         <li><strong>1:</strong> Tap "Start AR"</li>
         <li><strong>2:</strong> Allow camera access</li>
         <li><strong>3:</strong> Scan the Hiro marker</li>
-        <li><strong>4:</strong> 👆 <strong>Swipe left/right</strong> on the model to rotate!</li>
+        <li><strong>4:</strong> 👆 <strong>Tap and drag LEFT/RIGHT</strong> on the 3D model</li>
       </div>
       
       <button class="btn" id="start-ar">🎯 Start AR Experience</button>
       
       <div class="marker-box">
-        📌 <strong>Need the marker?</strong> <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Download Hiro Marker</a><br>
-        💡 <strong>iPhone Tip:</strong> Touch and drag directly ON the 3D model to rotate
+        📌 <strong>Hiro Marker</strong> - <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Tap to download/print</a><br>
+        💡 <strong>Tip:</strong> Touch the MODEL itself, then drag left/right
       </div>
     </div>
   </div>
@@ -224,7 +226,7 @@
         // Add instruction overlay
         const instruction = document.createElement('div');
         instruction.id = 'instruction';
-        instruction.innerHTML = '✨ Model found! Swipe LEFT/RIGHT on the model to rotate | Pinch to ZOOM ✨';
+        instruction.innerHTML = '🔍 MODEL DETECTED! 👆 Tap and DRAG LEFT/RIGHT on the model to rotate 🔄';
         document.body.appendChild(instruction);
         
         // Add rotating indicator with arrows
@@ -232,12 +234,12 @@
         indicator.id = 'rotate-indicator';
         indicator.innerHTML = `
           <span class="arrow arrow-left">◀</span>
-          <span>Swipe on model to rotate</span>
+          <span>👆 DRAG ON MODEL 👆</span>
           <span class="arrow">▶</span>
         `;
         document.body.appendChild(indicator);
         
-        // Auto-hide indicators after 5 seconds
+        // Auto-hide indicators after 6 seconds
         setTimeout(() => {
           instruction.style.opacity = '0';
           indicator.style.opacity = '0';
@@ -245,8 +247,11 @@
             if (instruction.parentNode) instruction.remove();
             if (indicator.parentNode) indicator.remove();
           }, 1000);
-        }, 5000);
+        }, 6000);
         
+        // IMPORTANT: Fixed position and rotation for the model
+        // position="0 0 0" means base of model sits ON the marker
+        // rotation="-90 0 0" fixes the "lying flat" issue from Blender
         arContainer.innerHTML = `
           <a-scene 
             embedded 
@@ -254,52 +259,50 @@
             vr-mode-ui="enabled: false"
             renderer="logarithmicDepthBuffer: true; antialias: true"
           >
-            <a-marker-camera preset="hiro" id="artifact-marker">
+            <a-marker preset="hiro" id="ar-marker">
               <!-- 
-                TURNTABLE CONTROL - FIXED FOR IOS:
-                - Uses both touchstart AND touchmove
-                - Prevents default behavior for iOS compatibility
-                - Only Y-axis rotation (left/right)
+                FIXED POSITION: "0 0 0" means model sits ON the marker
+                FIXED ROTATION: "-90 0 0" corrects Blender export (lying flat → standing up)
               -->
               <a-entity 
                 id="artifact-model"
-                position="0 0 0" 
-                rotation="-90 0 0" 
-                scale="0.6 0.6 0.6"
+                position="0 0 0"
+                rotation="-90 0 0"
+                scale="0.8 0.8 0.8"
               >
                 <!-- Your 3D model -->
                 <a-gltf-model src="./artifact.glb"></a-gltf-model>
-                
-                <!-- Text label -->
-                <a-text 
-                  value="Subangan Artifact" 
-                  align="center" 
-                  position="0 1.2 0" 
-                  color="#22c55e" 
-                  scale="0.5 0.5 0.5"
-                ></a-text>
               </a-entity>
-            </a-marker-camera>
+            </a-marker>
             
-            <!-- Lighting -->
-            <a-entity light="type: ambient; color: #ffffff; intensity: 0.5"></a-entity>
-            <a-entity light="type: directional; color: #ffffff; intensity: 0.8; position: 2 5 3"></a-entity>
-            <a-entity light="type: directional; color: #ffeedd; intensity: 0.4; position: -2 3 4"></a-entity>
+            <a-entity camera></a-entity>
+            
+            <!-- Lighting to make model look good -->
+            <a-entity light="type: ambient; color: #ffffff; intensity: 0.6"></a-entity>
+            <a-entity light="type: directional; color: #ffffff; intensity: 0.9; position: 2 5 3"></a-entity>
+            <a-entity light="type: directional; color: #ffeedd; intensity: 0.5; position: -2 3 4"></a-entity>
           </a-scene>
         `;
         
-        // Wait for model to load, then add iOS-compatible turntable controls
+        // Wait for the model to load and then add controls
         setTimeout(() => {
           const modelEntity = document.querySelector('#artifact-model');
           if (modelEntity) {
-            addTurntableControls(modelEntity);
+            console.log('✅ Model found, adding controls');
+            addRotationControls(modelEntity);
+          } else {
+            console.log('❌ Model not found yet, retrying...');
+            setTimeout(() => {
+              const retryModel = document.querySelector('#artifact-model');
+              if (retryModel) addRotationControls(retryModel);
+            }, 2000);
           }
-        }, 1500);
+        }, 2000);
         
         const scene = document.querySelector('a-scene');
         if (scene) {
           scene.addEventListener('loaded', () => {
-            console.log('✅ AR Scene loaded - Turntable mode enabled with iOS touch fix');
+            console.log('✅ AR Scene loaded');
           });
           
           scene.addEventListener('arError', (e) => {
@@ -308,117 +311,109 @@
             uiOverlay.style.display = 'flex';
             uiOverlay.classList.remove('hidden');
             arStarted = false;
-            if (instruction.parentNode) instruction.remove();
-            if (indicator.parentNode) indicator.remove();
           });
         }
       }
       
-      // iOS-compatible turntable control: ONLY horizontal rotation
-      function addTurntableControls(modelEntity) {
+      // SIMPLIFIED ROTATION CONTROLS - Works on iPhone
+      function addRotationControls(modelEntity) {
         let startX = 0;
         let startRotationY = 0;
         let isDragging = false;
-        
-        // Get current rotation
         let currentRotY = 0;
         
-        // Read initial rotation
+        // Get initial rotation
         const initialRot = modelEntity.getAttribute('rotation');
         currentRotY = initialRot ? initialRot.y || 0 : 0;
         
-        // Helper to get rotation Y from current entity
-        function updateCurrentRotation() {
-          const rot = modelEntity.getAttribute('rotation');
-          currentRotY = rot ? rot.y || 0 : currentRotY;
-        }
+        // Make sure the entity can receive touch events
+        modelEntity.setAttribute('raycastable', '');
+        modelEntity.classList.add('clickable');
         
-        // iOS FIX 1: Use both 'click' (for Safari compatibility) and 'touchstart'
-        // iOS FIX 2: Set { passive: false } for touch events
-        // iOS FIX 3: Prevent default to allow touch events to fire properly [citation:3]
+        // Add a visible overlay to help with touch detection on iOS
+        const makeClickable = () => {
+          // This ensures the entity registers touch events
+          modelEntity.style.pointerEvents = 'auto';
+        };
+        makeClickable();
         
-        // Touch start - for direct touch on model
+        // TOUCH START - for iPhone
         modelEntity.addEventListener('touchstart', (e) => {
-          e.preventDefault();  // CRITICAL for iOS [citation:3]
+          console.log('🖱️ Touch detected on model');
+          e.preventDefault();
           e.stopPropagation();
           
-          // Only start drag if it's a single touch
           if (e.touches.length === 1) {
             isDragging = true;
             startX = e.touches[0].clientX;
-            updateCurrentRotation();
             startRotationY = currentRotY;
-            console.log('Touch start - rotation will begin');
+            console.log('Started drag, startY rotation:', startRotationY);
           }
-        }, { passive: false });  // passive: false is required for preventDefault to work on iOS
+        }, { passive: false });
         
-        // Alternative: Also listen for 'mousedown' for desktop testing
-        modelEntity.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          isDragging = true;
-          startX = e.clientX;
-          updateCurrentRotation();
-          startRotationY = currentRotY;
-        });
-        
-        // Touch move - track horizontal movement
-        const handleTouchMove = (e) => {
+        // TOUCH MOVE - track horizontal movement
+        modelEntity.addEventListener('touchmove', (e) => {
           if (!isDragging) return;
           e.preventDefault();
           e.stopPropagation();
           
-          // Only respond to single-touch drags
-          if (e.touches && e.touches.length === 1) {
+          if (e.touches.length === 1) {
             const deltaX = e.touches[0].clientX - startX;
-            // Sensitivity: every 2 pixels = 1 degree
-            const newRotY = startRotationY + (deltaX * 0.8);
+            // Sensitivity: 1 pixel = 0.5 degrees
+            const newRotY = startRotationY + (deltaX * 0.6);
             
-            // Apply rotation - ONLY Y axis (horizontal spin)
+            console.log('Rotating to:', newRotY);
+            
+            // Apply new rotation - ONLY Y axis changes
             modelEntity.setAttribute('rotation', {
-              x: -90,           // Fixed - model stands upright
-              y: newRotY,       // Changes with swipe (left/right)
-              z: 0              // Fixed - no roll
+              x: -90,
+              y: newRotY,
+              z: 0
             });
             
             currentRotY = newRotY;
           }
-        };
+        }, { passive: false });
         
-        modelEntity.addEventListener('touchmove', handleTouchMove, { passive: false });
+        // TOUCH END
+        modelEntity.addEventListener('touchend', (e) => {
+          console.log('Touch ended');
+          isDragging = false;
+        });
         
-        // Mouse move for desktop testing
-        const handleMouseMove = (e) => {
-          if (!isDragging) return;
+        modelEntity.addEventListener('touchcancel', (e) => {
+          isDragging = false;
+        });
+        
+        // Also add mouse support for testing on desktop
+        modelEntity.addEventListener('mousedown', (e) => {
           e.preventDefault();
-          
+          isDragging = true;
+          startX = e.clientX;
+          startRotationY = currentRotY;
+        });
+        
+        window.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
           const deltaX = e.clientX - startX;
-          const newRotY = startRotationY + (deltaX * 0.8);
-          
+          const newRotY = startRotationY + (deltaX * 0.6);
           modelEntity.setAttribute('rotation', {
             x: -90,
             y: newRotY,
             z: 0
           });
-          
           currentRotY = newRotY;
-        };
+        });
         
-        document.addEventListener('mousemove', handleMouseMove);
-        
-        // Touch end
-        const endDrag = (e) => {
+        window.addEventListener('mouseup', () => {
           isDragging = false;
-        };
+        });
         
-        modelEntity.addEventListener('touchend', endDrag);
-        modelEntity.addEventListener('touchcancel', endDrag);
-        document.addEventListener('mouseup', endDrag);
-        
-        // Pinch-to-zoom functionality
+        // PINCH TO ZOOM
         let initialDistance = 0;
-        let initialScale = 0.6;
+        let initialScale = 0.8;
         
-        const getTouchDistance = (touches) => {
+        const getDistance = (touches) => {
           const dx = touches[0].clientX - touches[1].clientX;
           const dy = touches[0].clientY - touches[1].clientY;
           return Math.sqrt(dx * dx + dy * dy);
@@ -427,18 +422,17 @@
         modelEntity.addEventListener('touchstart', (e) => {
           if (e.touches.length === 2) {
             e.preventDefault();
-            initialDistance = getTouchDistance(e.touches);
+            initialDistance = getDistance(e.touches);
             const currentScale = modelEntity.getAttribute('scale');
-            initialScale = currentScale ? currentScale.x || 0.6 : 0.6;
+            initialScale = currentScale ? currentScale.x : 0.8;
           }
-        }, { passive: false });
+        });
         
         modelEntity.addEventListener('touchmove', (e) => {
           if (e.touches.length === 2) {
             e.preventDefault();
-            const newDistance = getTouchDistance(e.touches);
+            const newDistance = getDistance(e.touches);
             const scale = initialScale * (newDistance / initialDistance);
-            // Clamp zoom between 0.3 and 2.5
             const clampedScale = Math.min(Math.max(scale, 0.3), 2.5);
             modelEntity.setAttribute('scale', {
               x: clampedScale,
@@ -446,9 +440,17 @@
               z: clampedScale
             });
           }
-        }, { passive: false });
+        });
         
-        console.log('✅ iOS-compatible turntable controls added');
+        // Short vibration to confirm model is interactive (optional, works on supported devices)
+        const vibrateOnTouch = () => {
+          if (navigator.vibrate) {
+            navigator.vibrate(50);
+          }
+        };
+        modelEntity.addEventListener('touchstart', vibrateOnTouch);
+        
+        console.log('✅ Rotation controls added! Touch the model and drag left/right');
       }
       
       startBtn.addEventListener('click', startAR);
