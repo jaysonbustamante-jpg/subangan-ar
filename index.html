@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Working Final</title>
+  <title>Subangan ARchive - Complete Solution</title>
   
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -66,11 +66,6 @@
       transition: transform 0.2s, box-shadow 0.2s;
     }
     
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
-    }
-    
     .steps {
       text-align: left;
       margin: 24px 0;
@@ -121,60 +116,109 @@
       height: 100% !important;
     }
     
+    /* On-screen rotation buttons */
+    .rotation-controls {
+      position: fixed;
+      bottom: 30px;
+      left: 0;
+      right: 0;
+      display: flex;
+      justify-content: center;
+      gap: 40px;
+      z-index: 1001;
+      pointer-events: none;
+    }
+    
+    .rot-btn {
+      pointer-events: auto;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(34, 197, 94, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #22c55e;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      user-select: none;
+      box-shadow: 0 0 15px rgba(34, 197, 94, 0.2);
+    }
+    
+    .rot-btn:active {
+      transform: scale(0.95);
+      background: rgba(34, 197, 94, 0.3);
+    }
+    
+    .rot-btn-left, .rot-btn-right {
+      font-weight: bold;
+    }
+    
+    .zoom-controls {
+      position: fixed;
+      right: 20px;
+      bottom: 100px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      z-index: 1001;
+      pointer-events: none;
+    }
+    
+    .zoom-btn {
+      pointer-events: auto;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(34, 197, 94, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      color: #22c55e;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    
+    .zoom-btn:active {
+      transform: scale(0.95);
+      background: rgba(34, 197, 94, 0.3);
+    }
+    
     #instruction {
       position: fixed;
-      bottom: 20px;
+      top: 20px;
       left: 20px;
       right: 20px;
-      background: rgba(0,0,0,0.7);
-      backdrop-filter: blur(8px);
-      border-radius: 30px;
-      padding: 12px 20px;
-      text-align: center;
-      color: #22c55e;
-      font-size: 14px;
-      z-index: 1001;
-      pointer-events: none;
-      transition: opacity 1s ease;
-    }
-    
-    #rotate-indicator {
-      position: fixed;
-      bottom: 90px;
-      left: 50%;
-      transform: translateX(-50%);
       background: rgba(0,0,0,0.6);
       backdrop-filter: blur(8px);
-      border-radius: 40px;
-      padding: 8px 20px;
-      color: white;
+      border-radius: 20px;
+      padding: 10px 16px;
+      text-align: center;
+      color: #22c55e;
       font-size: 13px;
       z-index: 1001;
-      display: flex;
-      gap: 15px;
-      align-items: center;
-      white-space: nowrap;
       pointer-events: none;
       transition: opacity 1s ease;
     }
     
-    .arrow {
-      font-size: 18px;
-      animation: pulse 1.5s ease-in-out infinite;
-    }
-    
-    @keyframes pulse {
-      0%, 100% { opacity: 0.5; transform: translateX(0); }
-      50% { opacity: 1; transform: translateX(5px); }
-    }
-    
-    .arrow-left {
-      animation: pulse-left 1.5s ease-in-out infinite;
-    }
-    
-    @keyframes pulse-left {
-      0%, 100% { opacity: 0.5; transform: translateX(0); }
-      50% { opacity: 1; transform: translateX(-5px); }
+    #status {
+      position: fixed;
+      bottom: 100px;
+      left: 20px;
+      background: rgba(0,0,0,0.5);
+      backdrop-filter: blur(8px);
+      border-radius: 20px;
+      padding: 6px 12px;
+      color: white;
+      font-size: 11px;
+      z-index: 1001;
+      pointer-events: none;
     }
   </style>
 </head>
@@ -186,23 +230,24 @@
       <p>Interactive digital archive with augmented reality</p>
       
       <div>
-        <span class="feature-badge">↔️ Swipe left/right to rotate</span>
-        <span class="feature-badge">✌️ Pinch to zoom</span>
-        <span class="feature-badge">📏 Smaller model</span>
+        <span class="feature-badge">🔘 Arrow buttons to rotate</span>
+        <span class="feature-badge">➕➖ Pinch or buttons to zoom</span>
+        <span class="feature-badge">📌 Model stays visible</span>
+        <span class="feature-badge">📏 Small & low position</span>
       </div>
       
       <div class="steps">
         <li><strong>1:</strong> Tap "Start AR"</li>
         <li><strong>2:</strong> Allow camera access</li>
-        <li><strong>3:</strong> Scan the Hiro marker</li>
-        <li><strong>4:</strong> 👆 <strong>Drag LEFT/RIGHT</strong> on the 3D model to rotate</li>
+        <li><strong>3:</strong> Scan Hiro marker once (model appears)</li>
+        <li><strong>4:</strong> Model stays - use ◀ ▶ buttons to rotate!</li>
       </div>
       
       <button class="btn" id="start-ar">🎯 Start AR Experience</button>
       
       <div class="marker-box">
         📌 <strong>Hiro Marker</strong> - <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Tap to download/print</a><br>
-        💡 <strong>Tip:</strong> Touch the MODEL directly, then drag left/right
+        💡 <strong>How it works:</strong> Scan marker once, model appears and stays. Then use the ◀ ▶ buttons to rotate left/right!
       </div>
     </div>
   </div>
@@ -216,8 +261,10 @@
       const arContainer = document.getElementById('ar-container');
       
       let arStarted = false;
-      let rotationEnabled = false;
-      let currentYRotation = 0;
+      let currentRotationY = 0;
+      let currentScale = 0.3;  // Small model size
+      let modelEntity = null;
+      let markerFoundOnce = false;
       
       function startAR() {
         if (arStarted) return;
@@ -228,13 +275,39 @@
           uiOverlay.style.display = 'none';
         }, 500);
         
-        // Add instruction overlay (NO ALERTS!)
+        // Add instruction
         const instruction = document.createElement('div');
         instruction.id = 'instruction';
-        instruction.innerHTML = '🔍 Point camera at HIRO marker to see the model';
+        instruction.innerHTML = '🔍 Scan the HIRO marker once to place the 3D model';
         document.body.appendChild(instruction);
         
-        // Inject AR scene
+        // Add status
+        const status = document.createElement('div');
+        status.id = 'status';
+        status.innerHTML = '📍 Waiting for marker...';
+        document.body.appendChild(status);
+        
+        // Add rotation buttons (hidden until model appears)
+        const rotControls = document.createElement('div');
+        rotControls.className = 'rotation-controls';
+        rotControls.innerHTML = `
+          <div class="rot-btn rot-btn-left" id="rotate-left">◀</div>
+          <div class="rot-btn rot-btn-right" id="rotate-right">▶</div>
+        `;
+        rotControls.style.display = 'none';
+        document.body.appendChild(rotControls);
+        
+        // Add zoom buttons
+        const zoomControls = document.createElement('div');
+        zoomControls.className = 'zoom-controls';
+        zoomControls.innerHTML = `
+          <div class="zoom-btn" id="zoom-in">➕</div>
+          <div class="zoom-btn" id="zoom-out">➖</div>
+        `;
+        zoomControls.style.display = 'none';
+        document.body.appendChild(zoomControls);
+        
+        // Inject AR scene - Using a-marker-camera to KEEP model visible after marker lost
         arContainer.innerHTML = `
           <a-scene 
             embedded 
@@ -242,197 +315,203 @@
             vr-mode-ui="enabled: false"
             renderer="logarithmicDepthBuffer: true; antialias: true"
           >
-            <a-marker preset="hiro" id="ar-marker">
+            <!-- a-marker-camera keeps model visible even after losing the marker -->
+            <a-marker-camera preset="hiro" id="ar-marker">
               <a-entity 
                 id="artifact-model"
-                position="0 0 0"
+                position="0 -0.2 0"
                 rotation="-90 0 0"
-                scale="0.35 0.35 0.35"
+                scale="0.3 0.3 0.3"
               >
-                <!-- Your 3D model -->
                 <a-gltf-model src="./artifact.glb"></a-gltf-model>
               </a-entity>
-            </a-marker>
+            </a-marker-camera>
             
             <a-entity camera></a-entity>
             
-            <!-- Lighting -->
             <a-entity light="type: ambient; color: #ffffff; intensity: 0.6"></a-entity>
             <a-entity light="type: directional; color: #ffffff; intensity: 0.9; position: 2 5 3"></a-entity>
             <a-entity light="type: directional; color: #ffeedd; intensity: 0.5; position: -2 3 4"></a-entity>
           </a-scene>
         `;
         
-        // Wait for marker to be detected, THEN show rotation instructions
-        const marker = document.querySelector('#ar-marker');
-        if (marker) {
-          marker.addEventListener('markerFound', () => {
-            console.log('✅ HIRO MARKER FOUND! Model should appear');
-            
-            // Update instruction
-            instruction.innerHTML = '✅ MODEL DETECTED! 👆 Drag LEFT/RIGHT on the model to rotate';
-            
-            // Show rotate indicator
-            const indicator = document.createElement('div');
-            indicator.id = 'rotate-indicator';
-            indicator.innerHTML = `
-              <span class="arrow arrow-left">◀</span>
-              <span>👆 DRAG ON MODEL 👆</span>
-              <span class="arrow">▶</span>
-            `;
-            document.body.appendChild(indicator);
-            
-            // Auto-hide after 5 seconds
-            setTimeout(() => {
-              if (indicator.parentNode) {
-                indicator.style.opacity = '0';
-                setTimeout(() => indicator.remove(), 1000);
-              }
-              instruction.innerHTML = '↔️ Swipe left/right on the model to rotate | Pinch to zoom';
-              setTimeout(() => {
-                instruction.style.opacity = '0';
-                setTimeout(() => instruction.remove(), 1000);
-              }, 4000);
-            }, 5000);
-            
-            // Enable rotation controls ONCE model is visible
-            enableRotationControls();
-          });
+        // Wait for elements
+        setTimeout(() => {
+          modelEntity = document.querySelector('#artifact-model');
+          const marker = document.querySelector('#ar-marker');
           
-          marker.addEventListener('markerLost', () => {
-            console.log('👋 Marker lost - model hidden');
-          });
-        }
+          if (marker) {
+            marker.addEventListener('markerFound', () => {
+              if (!markerFoundOnce) {
+                markerFoundOnce = true;
+                console.log('✅ Marker found once - model will now stay visible');
+                status.innerHTML = '✅ Model placed! Use ◀ ▶ buttons to rotate';
+                status.style.background = 'rgba(34,197,94,0.3)';
+                
+                instruction.innerHTML = '✅ Model is now FIXED! Use the ◀ ▶ buttons to rotate left/right';
+                
+                // Show controls
+                rotControls.style.display = 'flex';
+                zoomControls.style.display = 'flex';
+                
+                setTimeout(() => {
+                  instruction.innerHTML = '↔️ Click ◀ to rotate left | Click ▶ to rotate right | Pinch to zoom';
+                  setTimeout(() => {
+                    instruction.style.opacity = '0';
+                    setTimeout(() => instruction.remove(), 1000);
+                  }, 5000);
+                }, 3000);
+              } else {
+                status.innerHTML = '✅ Model already placed - using buttons to rotate';
+              }
+            });
+          }
+          
+          // Get current rotation
+          if (modelEntity) {
+            const rot = modelEntity.getAttribute('rotation');
+            currentRotationY = rot ? rot.y || 0 : 0;
+            currentScale = 0.3;
+          }
+          
+        }, 1000);
         
-        function enableRotationControls() {
+        // --- ROTATION BUTTONS ---
+        const rotateLeft = () => {
+          if (!modelEntity) {
+            modelEntity = document.querySelector('#artifact-model');
+            if (!modelEntity) return;
+          }
+          currentRotationY -= 15;  // Rotate 15 degrees left
+          modelEntity.setAttribute('rotation', {
+            x: -90,
+            y: currentRotationY,
+            z: 0
+          });
+          console.log('Rotated to:', currentRotationY);
+        };
+        
+        const rotateRight = () => {
+          if (!modelEntity) {
+            modelEntity = document.querySelector('#artifact-model');
+            if (!modelEntity) return;
+          }
+          currentRotationY += 15;  // Rotate 15 degrees right
+          modelEntity.setAttribute('rotation', {
+            x: -90,
+            y: currentRotationY,
+            z: 0
+          });
+          console.log('Rotated to:', currentRotationY);
+        };
+        
+        // --- ZOOM BUTTONS ---
+        const zoomIn = () => {
+          if (!modelEntity) {
+            modelEntity = document.querySelector('#artifact-model');
+            if (!modelEntity) return;
+          }
+          currentScale = Math.min(currentScale + 0.05, 0.8);
+          modelEntity.setAttribute('scale', {
+            x: currentScale,
+            y: currentScale,
+            z: currentScale
+          });
+        };
+        
+        const zoomOut = () => {
+          if (!modelEntity) {
+            modelEntity = document.querySelector('#artifact-model');
+            if (!modelEntity) return;
+          }
+          currentScale = Math.max(currentScale - 0.05, 0.15);
+          modelEntity.setAttribute('scale', {
+            x: currentScale,
+            y: currentScale,
+            z: currentScale
+          });
+        };
+        
+        // Attach button events after DOM ready
+        setTimeout(() => {
+          const leftBtn = document.getElementById('rotate-left');
+          const rightBtn = document.getElementById('rotate-right');
+          const zoomInBtn = document.getElementById('zoom-in');
+          const zoomOutBtn = document.getElementById('zoom-out');
+          
+          if (leftBtn) {
+            leftBtn.addEventListener('click', rotateLeft);
+            leftBtn.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              rotateLeft();
+            });
+          }
+          
+          if (rightBtn) {
+            rightBtn.addEventListener('click', rotateRight);
+            rightBtn.addEventListener('touchstart', (e) => {
+              e.preventDefault();
+              rotateRight();
+            });
+          }
+          
+          if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
+          if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
+        }, 500);
+        
+        // Also add touch drag as alternative (optional)
+        function addTouchDrag() {
           setTimeout(() => {
-            const modelEntity = document.querySelector('#artifact-model');
             if (!modelEntity) {
-              console.log('Model not ready, retrying...');
-              setTimeout(enableRotationControls, 1000);
-              return;
+              modelEntity = document.querySelector('#artifact-model');
+              if (!modelEntity) return;
             }
             
-            console.log('✅ ENABLING ROTATION CONTROLS');
-            
             let startX = 0;
-            let startRotationY = 0;
+            let startRotY = 0;
             let isDragging = false;
             
-            // Get initial rotation
-            const initRot = modelEntity.getAttribute('rotation');
-            currentYRotation = initRot ? initRot.y || 0 : 0;
-            
-            // Touch start
             modelEntity.addEventListener('touchstart', (e) => {
               e.preventDefault();
-              e.stopPropagation();
               if (e.touches.length === 1) {
                 isDragging = true;
                 startX = e.touches[0].clientX;
-                startRotationY = currentYRotation;
-                console.log('Touch start - rotation enabled');
+                startRotY = currentRotationY;
               }
             }, { passive: false });
             
-            // Touch move
             modelEntity.addEventListener('touchmove', (e) => {
               if (!isDragging) return;
               e.preventDefault();
-              e.stopPropagation();
-              
-              if (e.touches.length === 1) {
-                const deltaX = e.touches[0].clientX - startX;
-                const newRotY = startRotationY + (deltaX * 0.8);
-                
-                modelEntity.setAttribute('rotation', {
-                  x: -90,
-                  y: newRotY,
-                  z: 0
-                });
-                currentYRotation = newRotY;
-              }
+              const deltaX = e.touches[0].clientX - startX;
+              const newRotY = startRotY + (deltaX * 0.5);
+              currentRotationY = newRotY;
+              modelEntity.setAttribute('rotation', {
+                x: -90,
+                y: currentRotationY,
+                z: 0
+              });
             }, { passive: false });
             
-            // Touch end
             modelEntity.addEventListener('touchend', () => {
               isDragging = false;
             });
             
-            modelEntity.addEventListener('touchcancel', () => {
-              isDragging = false;
-            });
-            
-            // Mouse support for testing
-            modelEntity.addEventListener('mousedown', (e) => {
-              e.preventDefault();
-              isDragging = true;
-              startX = e.clientX;
-              startRotationY = currentYRotation;
-            });
-            
-            window.addEventListener('mousemove', (e) => {
-              if (!isDragging) return;
-              const deltaX = e.clientX - startX;
-              const newRotY = startRotationY + (deltaX * 0.8);
-              modelEntity.setAttribute('rotation', {
-                x: -90,
-                y: newRotY,
-                z: 0
-              });
-              currentYRotation = newRotY;
-            });
-            
-            window.addEventListener('mouseup', () => {
-              isDragging = false;
-            });
-            
-            // Pinch to zoom
-            let initialDistance = 0;
-            let initialScale = 0.35;
-            
-            const getDistance = (touches) => {
-              const dx = touches[0].clientX - touches[1].clientX;
-              const dy = touches[0].clientY - touches[1].clientY;
-              return Math.sqrt(dx * dx + dy * dy);
-            };
-            
-            modelEntity.addEventListener('touchstart', (e) => {
-              if (e.touches.length === 2) {
-                e.preventDefault();
-                initialDistance = getDistance(e.touches);
-                const currScale = modelEntity.getAttribute('scale');
-                initialScale = currScale ? currScale.x : 0.35;
-              }
-            });
-            
-            modelEntity.addEventListener('touchmove', (e) => {
-              if (e.touches.length === 2) {
-                e.preventDefault();
-                const newDistance = getDistance(e.touches);
-                let scale = initialScale * (newDistance / initialDistance);
-                scale = Math.min(Math.max(scale, 0.2), 2.0);
-                modelEntity.setAttribute('scale', {
-                  x: scale,
-                  y: scale,
-                  z: scale
-                });
-              }
-            });
-            
-            console.log('✅ Rotation controls ready - drag left/right on model');
-          }, 500);
+            console.log('Touch drag also available');
+          }, 2000);
         }
+        
+        addTouchDrag();
         
         const scene = document.querySelector('a-scene');
         if (scene) {
           scene.addEventListener('loaded', () => {
-            console.log('✅ AR Scene loaded - Scan the Hiro marker');
+            console.log('✅ AR Scene loaded');
           });
           
           scene.addEventListener('arError', (e) => {
             console.error('❌ AR Error:', e.detail);
-            instruction.innerHTML = '❌ Camera error. Please refresh and allow camera permission.';
+            status.innerHTML = '❌ Camera error - please refresh and allow camera';
           });
         }
       }
