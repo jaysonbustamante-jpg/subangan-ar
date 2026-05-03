@@ -3,13 +3,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Fixed Controls</title>
+  <title>Subangan ARchive - Working Controls</title>
   
   <!-- A-Frame -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
   
   <!-- AR.js -->
   <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  
+  <!-- SUPER HANDS - Proven touch controls library -->
+  <script src="https://unpkg.com/super-hands@3.1.0/dist/super-hands.min.js"></script>
+  
+  <!-- A-Frame Events for better touch -->
+  <script src="https://unpkg.com/aframe-event-set-component@4.0.1/dist/aframe-event-set-component.min.js"></script>
 
   <style>
     body {
@@ -173,6 +179,11 @@
       0%, 100% { opacity: 0.5; transform: translateX(0); }
       50% { opacity: 1; transform: translateX(-5px); }
     }
+    
+    /* Make model touchable */
+    [data-raycastable] {
+      cursor: pointer;
+    }
   </style>
 </head>
 
@@ -185,7 +196,7 @@
       <div>
         <span class="feature-badge">↔️ Swipe left/right to rotate</span>
         <span class="feature-badge">✌️ Pinch to zoom</span>
-        <span class="feature-badge">📌 Model on marker</span>
+        <span class="feature-badge">📏 Smaller model size</span>
       </div>
       
       <div class="steps">
@@ -199,7 +210,7 @@
       
       <div class="marker-box">
         📌 <strong>Hiro Marker</strong> - <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Tap to download/print</a><br>
-        💡 <strong>Tip:</strong> Touch the MODEL itself, then drag left/right
+        💡 <strong>Tip:</strong> Touch the MODEL itself, then drag left/right. Model is now 40% smaller.
       </div>
     </div>
   </div>
@@ -226,7 +237,7 @@
         // Add instruction overlay
         const instruction = document.createElement('div');
         instruction.id = 'instruction';
-        instruction.innerHTML = '🔍 MODEL DETECTED! 👆 Tap and DRAG LEFT/RIGHT on the model to rotate 🔄';
+        instruction.innerHTML = '🔍 MODEL DETECTED! 👆 Touch the model and DRAG LEFT/RIGHT to rotate 🔄';
         document.body.appendChild(instruction);
         
         // Add rotating indicator with arrows
@@ -249,9 +260,7 @@
           }, 1000);
         }, 6000);
         
-        // IMPORTANT: Fixed position and rotation for the model
-        // position="0 0 0" means base of model sits ON the marker
-        // rotation="-90 0 0" fixes the "lying flat" issue from Blender
+        // MODEL SIZE: scale="0.4 0.4 0.4" = 40% of original size
         arContainer.innerHTML = `
           <a-scene 
             embedded 
@@ -261,43 +270,66 @@
           >
             <a-marker preset="hiro" id="ar-marker">
               <!-- 
-                FIXED POSITION: "0 0 0" means model sits ON the marker
-                FIXED ROTATION: "-90 0 0" corrects Blender export (lying flat → standing up)
+                SMALLER MODEL: scale 0.4 = 40% of original size
+                FIXED POSITION: 0 0 0 = sits ON the marker
+                SUPER-HANDS: adds drag, pinch, and rotate gestures
               -->
               <a-entity 
                 id="artifact-model"
                 position="0 0 0"
                 rotation="-90 0 0"
-                scale="0.8 0.8 0.8"
+                scale="0.4 0.4 0.4"
+                super-hands="hand: left"
+                raycaster="objects: [data-raycastable]"
+                data-raycastable
               >
                 <!-- Your 3D model -->
                 <a-gltf-model src="./artifact.glb"></a-gltf-model>
+                
+                <!-- Invisible sphere to make touch area bigger (makes it easier to tap) -->
+                <a-sphere 
+                  radius="0.8" 
+                  opacity="0" 
+                  visible="false"
+                  data-raycastable
+                ></a-sphere>
               </a-entity>
             </a-marker>
             
             <a-entity camera></a-entity>
             
-            <!-- Lighting to make model look good -->
-            <a-entity light="type: ambient; color: #ffffff; intensity: 0.6"></a-entity>
-            <a-entity light="type: directional; color: #ffffff; intensity: 0.9; position: 2 5 3"></a-entity>
+            <!-- Lighting -->
+            <a-entity light="type: ambient; color: #ffffff; intensity: 0.7"></a-entity>
+            <a-entity light="type: directional; color: #ffffff; intensity: 1; position: 2 5 3"></a-entity>
             <a-entity light="type: directional; color: #ffeedd; intensity: 0.5; position: -2 3 4"></a-entity>
           </a-scene>
         `;
         
-        // Wait for the model to load and then add controls
+        // Wait for model to load and add touch debug
         setTimeout(() => {
           const modelEntity = document.querySelector('#artifact-model');
           if (modelEntity) {
-            console.log('✅ Model found, adding controls');
-            addRotationControls(modelEntity);
+            console.log('✅ Model found! Size: 0.4x normal');
+            
+            // Add a click/touch listener to confirm it's working
+            modelEntity.addEventListener('click', () => {
+              console.log('🎉 MODEL CLICKED! Controls are working!');
+              // Visual feedback - flash green
+              modelEntity.setAttribute('material', 'emissive', '#22c55e');
+              setTimeout(() => {
+                modelEntity.setAttribute('material', 'emissive', '#000000');
+              }, 200);
+            });
+            
+            modelEntity.addEventListener('touchstart', () => {
+              console.log('🖱️ MODEL TOUCHED!');
+            });
+            
+            alert('✅ Model loaded! Try touching it!');
           } else {
-            console.log('❌ Model not found yet, retrying...');
-            setTimeout(() => {
-              const retryModel = document.querySelector('#artifact-model');
-              if (retryModel) addRotationControls(retryModel);
-            }, 2000);
+            console.log('❌ Model not found');
           }
-        }, 2000);
+        }, 3000);
         
         const scene = document.querySelector('a-scene');
         if (scene) {
@@ -313,144 +345,6 @@
             arStarted = false;
           });
         }
-      }
-      
-      // SIMPLIFIED ROTATION CONTROLS - Works on iPhone
-      function addRotationControls(modelEntity) {
-        let startX = 0;
-        let startRotationY = 0;
-        let isDragging = false;
-        let currentRotY = 0;
-        
-        // Get initial rotation
-        const initialRot = modelEntity.getAttribute('rotation');
-        currentRotY = initialRot ? initialRot.y || 0 : 0;
-        
-        // Make sure the entity can receive touch events
-        modelEntity.setAttribute('raycastable', '');
-        modelEntity.classList.add('clickable');
-        
-        // Add a visible overlay to help with touch detection on iOS
-        const makeClickable = () => {
-          // This ensures the entity registers touch events
-          modelEntity.style.pointerEvents = 'auto';
-        };
-        makeClickable();
-        
-        // TOUCH START - for iPhone
-        modelEntity.addEventListener('touchstart', (e) => {
-          console.log('🖱️ Touch detected on model');
-          e.preventDefault();
-          e.stopPropagation();
-          
-          if (e.touches.length === 1) {
-            isDragging = true;
-            startX = e.touches[0].clientX;
-            startRotationY = currentRotY;
-            console.log('Started drag, startY rotation:', startRotationY);
-          }
-        }, { passive: false });
-        
-        // TOUCH MOVE - track horizontal movement
-        modelEntity.addEventListener('touchmove', (e) => {
-          if (!isDragging) return;
-          e.preventDefault();
-          e.stopPropagation();
-          
-          if (e.touches.length === 1) {
-            const deltaX = e.touches[0].clientX - startX;
-            // Sensitivity: 1 pixel = 0.5 degrees
-            const newRotY = startRotationY + (deltaX * 0.6);
-            
-            console.log('Rotating to:', newRotY);
-            
-            // Apply new rotation - ONLY Y axis changes
-            modelEntity.setAttribute('rotation', {
-              x: -90,
-              y: newRotY,
-              z: 0
-            });
-            
-            currentRotY = newRotY;
-          }
-        }, { passive: false });
-        
-        // TOUCH END
-        modelEntity.addEventListener('touchend', (e) => {
-          console.log('Touch ended');
-          isDragging = false;
-        });
-        
-        modelEntity.addEventListener('touchcancel', (e) => {
-          isDragging = false;
-        });
-        
-        // Also add mouse support for testing on desktop
-        modelEntity.addEventListener('mousedown', (e) => {
-          e.preventDefault();
-          isDragging = true;
-          startX = e.clientX;
-          startRotationY = currentRotY;
-        });
-        
-        window.addEventListener('mousemove', (e) => {
-          if (!isDragging) return;
-          const deltaX = e.clientX - startX;
-          const newRotY = startRotationY + (deltaX * 0.6);
-          modelEntity.setAttribute('rotation', {
-            x: -90,
-            y: newRotY,
-            z: 0
-          });
-          currentRotY = newRotY;
-        });
-        
-        window.addEventListener('mouseup', () => {
-          isDragging = false;
-        });
-        
-        // PINCH TO ZOOM
-        let initialDistance = 0;
-        let initialScale = 0.8;
-        
-        const getDistance = (touches) => {
-          const dx = touches[0].clientX - touches[1].clientX;
-          const dy = touches[0].clientY - touches[1].clientY;
-          return Math.sqrt(dx * dx + dy * dy);
-        };
-        
-        modelEntity.addEventListener('touchstart', (e) => {
-          if (e.touches.length === 2) {
-            e.preventDefault();
-            initialDistance = getDistance(e.touches);
-            const currentScale = modelEntity.getAttribute('scale');
-            initialScale = currentScale ? currentScale.x : 0.8;
-          }
-        });
-        
-        modelEntity.addEventListener('touchmove', (e) => {
-          if (e.touches.length === 2) {
-            e.preventDefault();
-            const newDistance = getDistance(e.touches);
-            const scale = initialScale * (newDistance / initialDistance);
-            const clampedScale = Math.min(Math.max(scale, 0.3), 2.5);
-            modelEntity.setAttribute('scale', {
-              x: clampedScale,
-              y: clampedScale,
-              z: clampedScale
-            });
-          }
-        });
-        
-        // Short vibration to confirm model is interactive (optional, works on supported devices)
-        const vibrateOnTouch = () => {
-          if (navigator.vibrate) {
-            navigator.vibrate(50);
-          }
-        };
-        modelEntity.addEventListener('touchstart', vibrateOnTouch);
-        
-        console.log('✅ Rotation controls added! Touch the model and drag left/right');
       }
       
       startBtn.addEventListener('click', startAR);
