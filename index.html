@@ -535,44 +535,7 @@
     }
     .ar-reset-fab:active { transform: scale(0.9); background: rgba(201,145,61,0.2); }
 
-    /* AR left / right rotate buttons */
-    .ar-rotate-btns {
-      position: fixed;
-      bottom: 82px;
-      right: 12px;
-      z-index: 9997;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .ar-rot-btn {
-      appearance: none;
-      border: 1px solid var(--stroke);
-      background: rgba(26, 18, 9, 0.85);
-      color: var(--gold2);
-      width: 48px; height: 48px;
-      border-radius: 14px;
-      cursor: pointer;
-      font-size: 22px;
-      font-weight: 300;
-      display: grid;
-      place-items: center;
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-      transition: background 0.12s, border-color 0.12s, transform 0.1s, box-shadow 0.12s;
-      touch-action: manipulation;
-      user-select: none;
-      -webkit-user-select: none;
-      line-height: 1;
-    }
-    .ar-rot-btn:active,
-    .ar-rot-btn.held {
-      background: rgba(201, 145, 61, 0.22);
-      border-color: var(--gold);
-      box-shadow: 0 4px 20px rgba(201, 145, 61, 0.35);
-      transform: scale(0.93);
-    }
+
 
     /* AR gesture guide overlay */
     #ar-gesture-guide {
@@ -788,7 +751,22 @@
               <path d="M13 18 C13 18 10 22 8 22 C6 22 6 20 8 20 C10 20 13 18 13 18Z" fill="#c9913d" opacity="0.7"/>
             </svg>
           </div>
-          <div class="gesture-text"><b>Rotate</b> — Drag one finger left or right</div>
+          <div class="gesture-text"><b>Spin</b> — Drag one finger to rotate</div>
+        </div>
+        <div class="gesture-divider"></div>
+        <div class="gesture-row">
+          <div class="gesture-icon">
+            <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <!-- Two-finger twist icon -->
+              <circle cx="8"  cy="13" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+              <circle cx="18" cy="13" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+              <path d="M8 10 C10 7 16 7 18 10" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+              <path d="M16 7 L18 10 L14 10" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+              <path d="M18 16 C16 19 10 19 8 16" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" fill="none"/>
+              <path d="M10 19 L8 16 L12 16" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+            </svg>
+          </div>
+          <div class="gesture-text"><b>Twist</b> — Rotate two fingers to spin (halo)</div>
         </div>
         <div class="gesture-divider"></div>
         <div class="gesture-row">
@@ -814,7 +792,7 @@
           </div>
           <div class="gesture-text"><b>Height</b> — Drag two fingers up or down</div>
         </div>
-        <div class="gesture-guide-hint">Touch model to dismiss</div>
+        <div class="gesture-guide-hint">Touch to dismiss</div>
       </div>
     </div>
 
@@ -825,12 +803,6 @@
         <button class="ar-exit-btn" id="btn-ar-exit">✕ Exit AR</button>
       </div>
       <div class="ar-scan-hint" id="ar-scan-hint">Point camera at marker to reveal artifact</div>
-    </div>
-
-    <!-- AR Rotate Left / Right buttons: hold to spin continuously -->
-    <div class="ar-rotate-btns">
-      <button class="ar-rot-btn" id="ar-rot-left"  title="Rotate left">‹</button>
-      <button class="ar-rot-btn" id="ar-rot-right" title="Rotate right">›</button>
     </div>
 
     <!-- AR Reset FAB -->
@@ -1101,6 +1073,7 @@
       let lastX = null;
       let lastMidY = null;
       let lastPinchDist = null;
+      let lastTwistAngle = null; // two-finger rotation (halo/Z-axis twist)
       let isGesturing = false;
 
       function getTouches(e) {
@@ -1122,6 +1095,14 @@
         return (t[ids[0]].y + t[ids[1]].y) / 2;
       }
 
+      // Returns the angle (degrees) of the vector from touch[0] to touch[1]
+      function twistAngle(t) {
+        const ids = Object.keys(t);
+        if (ids.length < 2) return null;
+        const a = t[ids[0]], b = t[ids[1]];
+        return Math.atan2(b.y - a.y, b.x - a.x) * (180 / Math.PI);
+      }
+
       element.addEventListener('touchstart', (e) => {
         e.preventDefault();
         touches = getTouches(e);
@@ -1132,9 +1113,11 @@
           lastX = touches[id].x;
           lastMidY = null;
           lastPinchDist = null;
+          lastTwistAngle = null;
         } else if (count >= 2) {
           lastPinchDist = pinchDist(touches);
           lastMidY = midY(touches);
+          lastTwistAngle = twistAngle(touches);
           lastX = null;
         }
 
@@ -1165,6 +1148,17 @@
           }
           lastPinchDist = dist;
 
+          // Two-finger twist → halo / Z-axis spin
+          const angle = twistAngle(touches);
+          if (angle !== null && lastTwistAngle !== null) {
+            let dAngle = angle - lastTwistAngle;
+            // Wrap delta to [-180, 180] to avoid 360° flips
+            if (dAngle > 180) dAngle -= 360;
+            if (dAngle < -180) dAngle += 360;
+            rot += dAngle;
+          }
+          lastTwistAngle = angle;
+
           // Two-finger drag Y
           const mY = midY(touches);
           if (mY !== null && lastMidY !== null) {
@@ -1182,11 +1176,11 @@
         touches = getTouches(e);
         const count = Object.keys(touches).length;
         if (count === 0) {
-          lastX = null; lastMidY = null; lastPinchDist = null;
+          lastX = null; lastMidY = null; lastPinchDist = null; lastTwistAngle = null;
           isGesturing = false;
         } else if (count === 1) {
           lastX = null; // anchor on next touchmove to prevent snap/flip
-          lastMidY = null; lastPinchDist = null;
+          lastMidY = null; lastPinchDist = null; lastTwistAngle = null;
         }
       }, { passive: true });
 
@@ -1347,50 +1341,6 @@
       arRot = 0; arScale = 1.2; arY = 0;
       applyARTransform();
     });
-
-    /* ── AR Left / Right rotate buttons (hold to spin) ── */
-    // Holding ‹ rotates left (Y decreases), holding › rotates right (Y increases).
-    // Works for both touch and mouse. Releasing always stops the spin immediately.
-    const AR_ROT_SPEED = 1.2; // degrees per frame at ~60 fps
-
-    function makeRotateButton(btnId, direction) {
-      const btn = document.getElementById(btnId);
-      let rafId = null;
-
-      function startSpin() {
-        if (rafId) return;
-        btn.classList.add('held');
-        function frame() {
-          arRot += AR_ROT_SPEED * direction;
-          applyARTransform();
-          rafId = requestAnimationFrame(frame);
-        }
-        rafId = requestAnimationFrame(frame);
-      }
-
-      function stopSpin() {
-        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
-        btn.classList.remove('held');
-      }
-
-      // Touch
-      btn.addEventListener('touchstart',  (e) => { e.preventDefault(); startSpin(); }, { passive: false });
-      btn.addEventListener('touchend',    (e) => { e.preventDefault(); stopSpin();  }, { passive: false });
-      btn.addEventListener('touchcancel', (e) => { e.preventDefault(); stopSpin();  }, { passive: false });
-
-      // Mouse (desktop / devtools)
-      btn.addEventListener('mousedown',  startSpin);
-      btn.addEventListener('mouseup',    stopSpin);
-      btn.addEventListener('mouseleave', stopSpin);
-
-      return { stop: stopSpin };
-    }
-
-    const _rotLeft  = makeRotateButton('ar-rot-left',  -1); // ‹ → decrease Z → halo-spins left
-    const _rotRight = makeRotateButton('ar-rot-right', +1); // › → increase Z → halo-spins right
-
-    // Stop both buttons when AR exits
-    function stopRotateButtons() { _rotLeft.stop(); _rotRight.stop(); }
 
     const errorMsg = document.getElementById('error-msg');
     function showError(msg) { errorMsg.style.display = msg ? 'block' : 'none'; errorMsg.textContent = msg || ''; }
@@ -1626,7 +1576,6 @@
       arStarted       = false;
       arModelFrozen   = false;
       _arState.active = false; // halt the tick component between sessions
-      stopRotateButtons();     // stop any ongoing button-held rotation
 
       // 1. Stop our canvas rAF loop and hidden video
       stopCameraCanvasLoop();
