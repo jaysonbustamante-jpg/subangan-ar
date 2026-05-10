@@ -953,17 +953,12 @@
       sceneEl.setAttribute('vr-mode-ui', 'enabled: false');
       sceneEl.setAttribute('renderer', 'antialias: true; alpha: true; preserveDrawingBuffer: true;');
       sceneEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;background:transparent;';
+      sceneEl.setAttribute('camera', 'active: false')
 
       // Camera at z=3, looking at origin (0,0,0) where model sits
       // fov="45" gives natural perspective without distortion
       sceneEl.innerHTML = `
-        <a-camera
-          position="0 0 3"
-          rotation="0 0 0"
-          fov="45"
-          look-controls="enabled:false"
-          wasd-controls="enabled:false"
-        ></a-camera>
+        <a-entity camera="active: true" position="0 0 3" rotation="0 0 0" look-controls="enabled: false" wasd-controls="enabled: false"></a-entity>
         <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
         <a-light type="directional" position="2 4 3"  intensity="1.2" color="#ffe5a0"></a-light>
         <a-light type="directional" position="-3 2 -2" intensity="0.4" color="#c9b0dd"></a-light>
@@ -1379,7 +1374,7 @@
                 id="ar-model"
                 src="#ar-glb"
                 position="0 0.5 0"
-                rotation="0 0 0"
+                rotation="-90 0 0"
                 scale="1.2 1.2 1.2"
               ></a-gltf-model>
             </a-entity>
@@ -1434,7 +1429,7 @@
             if (modelEl) {
               modelEl.setAttribute('visible', 'true');
               modelEl.setAttribute('position', '0 0.5 0');
-              modelEl.setAttribute('rotation', '0 0 0');
+              modelEl.setAttribute('rotation', '-90 0 0');  // Change from '0 0 0'
               modelEl.setAttribute('scale', '1.2 1.2 1.2');
               arModelEntity = modelEl;
             }
@@ -1444,35 +1439,20 @@
             if (!markerEverFound) return;
             arModelFrozen = true;
 
-            // Keep the model visible — AR.js hides the marker's children automatically.
-            // We move the model OUT of the marker into the scene root so it stays rendered.
+            // SIMPLE FIX: Set the model to stay visible and keep its transform
             try {
               const modelEl = scene.querySelector('#ar-model');
-              if (!modelEl) return;
-
-              // Capture current world transform before reparenting
-              modelEl.object3D.updateWorldMatrix(true, true);
-              const wp = new THREE.Vector3();
-              const wq = new THREE.Quaternion();
-              const ws = new THREE.Vector3();
-              modelEl.object3D.matrixWorld.decompose(wp, wq, ws);
-
-              // Move model to scene root
-              scene.appendChild(modelEl);
-
-              // Apply the captured world transform directly
-              modelEl.object3D.position.copy(wp);
-              modelEl.object3D.quaternion.copy(wq);
-              modelEl.object3D.scale.copy(ws);
-              modelEl.object3D.matrixWorldNeedsUpdate = true;
-
-              // Clear A-Frame attribute overrides so Three.js position is authoritative
-              modelEl.removeAttribute('position');
-              modelEl.removeAttribute('rotation');
-              modelEl.removeAttribute('scale');
-              modelEl.setAttribute('visible', 'true');
-
-              arModelEntity = modelEl;
+              if (modelEl && modelEl.parentNode !== scene) {
+                // Detach from marker and attach to scene root
+                scene.appendChild(modelEl);
+                
+                // Keep the same position, rotation, scale
+                modelEl.setAttribute('position', '0 0.5 0');
+                modelEl.setAttribute('rotation', '-90 0 0');
+                modelEl.setAttribute('scale', '1.2 1.2 1.2');
+                modelEl.setAttribute('visible', 'true');
+                arModelEntity = modelEl;
+              }
             } catch (_) {}
           });
         }
