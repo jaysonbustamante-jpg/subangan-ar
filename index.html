@@ -1,10 +1,10 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#1a1209" />
-  <title>Subangan ARchive System - Gesture Controlled</title>
+  <title>Subangan ARchive System</title>
 
   <!-- A-Frame & MindAR -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -16,523 +16,520 @@
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
   <style>
-    * {
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
+    :root {
+      --ink:       #1a1209;
+      --ink2:      #2b1f0e;
+      --parchment: #f5efe3;
+      --cream:     #fdf8f0;
+      --gold:      #c9913d;
+      --gold2:     #d4af37;
+      --gold-dim:  #8a6020;
+      --amber:     #e8a020;
+      --rust:      #7a3b1e;
+      --panel:     rgba(26, 18, 9, 0.72);
+      --panel2:    rgba(26, 18, 9, 0.55);
+      --stroke:    rgba(201, 145, 61, 0.3);
+      --stroke2:   rgba(201, 145, 61, 0.15);
+      --text:      #f5efe3;
+      --muted:     rgba(245, 239, 227, 0.7);
+      --muted2:    rgba(245, 239, 227, 0.45);
+      --font-display: 'Cormorant Garamond', Georgia, serif;
+      --font-body:    'Jost', system-ui, sans-serif;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    :root {
-      --ink: #1a1209;
-      --ink2: #2b1f0e;
-      --gold: #c9913d;
-      --gold2: #d4af37;
-      --gold-dim: #8a6020;
-      --panel: rgba(26, 18, 9, 0.72);
-      --panel2: rgba(26, 18, 9, 0.55);
-      --stroke: rgba(201, 145, 61, 0.3);
-      --text: #f5efe3;
-      --muted: rgba(245, 239, 227, 0.7);
-      --font-display: 'Cormorant Garamond', Georgia, serif;
-      --font-body: 'Jost', system-ui, sans-serif;
-    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     html, body {
-      width: 100%;
-      height: 100%;
+      width: 100%; height: 100%;
       overflow: hidden;
       background: var(--ink);
       font-family: var(--font-body);
       color: var(--text);
+      -webkit-tap-highlight-color: transparent;
     }
 
-    /* Museum background */
-    .museum-bg {
+    /* Noise grain overlay */
+    body::before {
+      content: '';
       position: fixed;
       inset: 0;
-      background: radial-gradient(ellipse 70% 50% at 15% 20%, rgba(201, 145, 61, 0.18) 0%, transparent 60%),
-                  radial-gradient(ellipse 80% 60% at 50% 100%, rgba(43, 31, 14, 0.8) 0%, transparent 70%),
-                  linear-gradient(170deg, #1a1209 0%, #2b1f0e 40%, #1a1209 100%);
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
       pointer-events: none;
-      z-index: 0;
+      z-index: 99990;
+      opacity: 0.5;
     }
 
-    /* View system */
+    /* ══ VIEWS ══ */
     .view {
       position: fixed;
       inset: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
       display: none;
       flex-direction: column;
-      z-index: 10;
+      align-items: center;
     }
     .view.active { display: flex; }
 
-    /* Landing view */
-    #view-landing {
-      justify-content: center;
-      align-items: center;
-      padding: 24px;
-      overflow-y: auto;
+    /* ══ BACKGROUND ══ */
+    .museum-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 15% 20%, rgba(201, 145, 61, 0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 85% 70%, rgba(122, 59, 30, 0.2) 0%, transparent 55%),
+        radial-gradient(ellipse 80% 60% at 50% 100%, rgba(43, 31, 14, 0.8) 0%, transparent 70%),
+        linear-gradient(170deg, #1a1209 0%, #2b1f0e 40%, #1a1209 100%);
+      pointer-events: none;
+    }
+    .museum-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: conic-gradient(from 0deg at 20% 30%, transparent 0deg, rgba(201, 145, 61, 0.04) 40deg, transparent 80deg);
+      animation: lightSweep 18s ease-in-out infinite alternate;
+    }
+    @keyframes lightSweep {
+      from { transform: rotate(0deg) scale(1); }
+      to   { transform: rotate(15deg) scale(1.1); }
     }
 
-    .landing-inner {
-      width: min(720px, 100%);
-      animation: riseIn 0.8s ease-out both;
-    }
-
-    @keyframes riseIn {
-      from { opacity: 0; transform: translateY(40px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    .logo-bar {
+    /* ══ DECORATIVE ══ */
+    .gold-line {
       display: flex;
       align-items: center;
-      gap: 14px;
-      margin-bottom: 20px;
+      gap: 12px;
+      color: var(--gold-dim);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-family: var(--font-body);
+      font-weight: 500;
+    }
+    .gold-line::before, .gold-line::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+      max-width: 80px;
     }
 
+    /* ══ LANDING ══ */
+    #view-landing {
+      justify-content: center;
+      padding: 24px 20px;
+      gap: 0;
+      z-index: 10;
+    }
+    .landing-inner {
+      position: relative;
+      z-index: 1;
+      width: min(720px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: riseIn 1s var(--ease-out) both;
+    }
+    @keyframes riseIn {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .logo-bar { display: flex; align-items: center; gap: 14px; }
     .logo-gem {
-      width: 48px;
-      height: 48px;
+      width: 48px; height: 48px;
       border-radius: 14px;
       border: 1px solid var(--stroke);
-      background: linear-gradient(135deg, #c9913d, #7a3b1e);
-      box-shadow: 0 0 24px rgba(201, 145, 61, 0.25);
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255,255,255,0.25), transparent 50%),
+        linear-gradient(135deg, #c9913d, #7a3b1e);
+      box-shadow: 0 0 24px rgba(201, 145, 61, 0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
     }
-
-    .logo-text h1 {
-      font-family: var(--font-display);
-      font-size: 22px;
-      font-weight: 600;
+    .logo-gem::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(45deg, transparent, transparent 4px, rgba(255,255,255,0.04) 4px, rgba(255,255,255,0.04) 5px);
     }
-
-    .logo-text .subtitle {
-      font-size: 11px;
-      color: var(--gold);
-      letter-spacing: 0.18em;
-      text-transform: uppercase;
-    }
+    .logo-text h1 { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: 0.02em; line-height: 1.1; }
+    .logo-text .subtitle { font-size: 11px; color: var(--gold); letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500; margin-top: 3px; }
 
     .hero-panel {
       border: 1px solid var(--stroke);
       border-radius: 20px;
-      padding: 28px;
-      background: var(--panel);
+      padding: 28px 28px 24px;
+      background: radial-gradient(ellipse 80% 60% at 10% 0%, rgba(201, 145, 61, 0.12), transparent 55%), var(--panel);
       backdrop-filter: blur(18px);
-      margin-bottom: 20px;
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(201, 145, 61, 0.12);
     }
+    .hero-eyebrow { font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); font-weight: 500; margin-bottom: 10px; }
+    .hero-title { font-family: var(--font-display); font-size: clamp(28px, 5vw, 42px); font-weight: 300; line-height: 1.15; margin-bottom: 12px; }
+    .hero-title em { font-style: italic; color: var(--gold2); }
+    .hero-body { font-size: 14px; line-height: 1.65; color: var(--muted); max-width: 520px; }
 
-    .hero-eyebrow {
-      font-size: 11px;
-      letter-spacing: 0.22em;
-      color: var(--gold);
-      margin-bottom: 10px;
-    }
-
-    .hero-title {
-      font-family: var(--font-display);
-      font-size: clamp(28px, 5vw, 42px);
-      font-weight: 300;
-    }
-
-    .hero-title em {
-      font-style: italic;
-      color: var(--gold2);
-    }
-
-    .hero-body {
-      font-size: 14px;
-      color: var(--muted);
-      line-height: 1.65;
-      margin-top: 12px;
-    }
-
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-      margin-bottom: 20px;
-    }
-
-    @media (min-width: 560px) {
-      .info-grid { grid-template-columns: 1fr 1fr; }
-    }
+    .info-grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
+    @media (min-width: 560px) { .info-grid { grid-template-columns: 1fr 1fr; } }
 
     .info-panel {
-      border: 1px solid rgba(201, 145, 61, 0.15);
+      border: 1px solid var(--stroke2);
       border-radius: 16px;
       padding: 18px;
       background: var(--panel2);
       backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
     }
+    .info-panel h3 { font-family: var(--font-display); font-size: 15px; font-weight: 600; letter-spacing: 0.03em; margin-bottom: 10px; color: var(--gold2); }
+    .steps-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .step-row { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+    .step-num { width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--stroke); background: rgba(201, 145, 61, 0.12); display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--gold); }
+    .step-row p { font-size: 13px; color: var(--muted); line-height: 1.45; padding-top: 4px; }
+    .step-row p b { color: var(--text); font-weight: 600; }
+    .notes-text { font-size: 13px; color: var(--muted); line-height: 1.55; }
+    .notes-text b { color: var(--text); font-weight: 600; }
 
-    .info-panel h3 {
-      font-family: var(--font-display);
-      font-size: 15px;
-      color: var(--gold2);
-      margin-bottom: 10px;
-    }
-
-    .step-row {
-      display: grid;
-      grid-template-columns: 28px 1fr;
-      gap: 10px;
-      margin-bottom: 10px;
-    }
-
-    .step-num {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      border: 1px solid var(--stroke);
-      background: rgba(201, 145, 61, 0.12);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: 600;
-      color: var(--gold);
-    }
-
-    .step-row p {
-      font-size: 13px;
-      color: var(--muted);
-    }
-
-    .action-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 16px;
-    }
+    .action-row { display: grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 420px) { .action-row { grid-template-columns: 1fr 1fr 1fr; } }
 
     .btn {
-      appearance: none;
-      border: none;
-      cursor: pointer;
+      appearance: none; border: none; cursor: pointer;
       border-radius: 12px;
-      font-family: var(--font-body);
-      font-size: 14px;
-      font-weight: 500;
+      font-family: var(--font-body); font-size: 14px; font-weight: 500; letter-spacing: 0.04em;
       padding: 13px 16px;
-      transition: transform 0.18s, box-shadow 0.18s;
+      text-decoration: none;
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), opacity 0.18s;
+      position: relative; overflow: hidden;
+      touch-action: manipulation;
+    }
+    .btn::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: rgba(255,255,255,0); transition: background 0.15s; }
+    .btn:hover::after { background: rgba(255,255,255,0.06); }
+    .btn:active { transform: scale(0.97) !important; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-gold { border: 1px solid rgba(201, 145, 61, 0.5); background: linear-gradient(135deg, rgba(201, 145, 61, 0.35), rgba(122, 59, 30, 0.35)); color: var(--gold2); box-shadow: 0 2px 12px rgba(201, 145, 61, 0.15), inset 0 1px 0 rgba(255,255,255,0.08); }
+    .btn-gold:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(201, 145, 61, 0.3); }
+    .btn-ghost { border: 1px solid var(--stroke2); background: rgba(245, 239, 227, 0.05); color: var(--muted); }
+    .btn-ghost:hover { transform: translateY(-2px); border-color: var(--stroke); color: var(--text); }
+    .btn-primary { border: 1px solid rgba(201, 145, 61, 0.6); background: linear-gradient(135deg, rgba(201, 145, 61, 0.5), rgba(122, 59, 30, 0.5)); color: #fff; box-shadow: 0 4px 20px rgba(201, 145, 61, 0.2); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(201, 145, 61, 0.35); }
+
+    #error-msg {
+      font-size: 13px; color: #ffb99a; display: none; margin-top: 8px; line-height: 1.5;
+      padding: 10px 14px; border: 1px solid rgba(255, 120, 60, 0.25); border-radius: 10px; background: rgba(255, 80, 20, 0.1);
     }
 
-    .btn:active {
-      transform: scale(0.97);
-    }
+    /* ══ ARCHIVE GALLERY ══ */
+    #view-archive { z-index: 10; padding: 0; align-items: stretch; justify-content: flex-start; min-height: 100%; }
 
-    .btn-primary {
-      border: 1px solid rgba(201, 145, 61, 0.6);
-      background: linear-gradient(135deg, rgba(201, 145, 61, 0.5), rgba(122, 59, 30, 0.5));
-      color: #fff;
-    }
-
-    .btn-gold {
-      border: 1px solid rgba(201, 145, 61, 0.5);
-      background: linear-gradient(135deg, rgba(201, 145, 61, 0.35), rgba(122, 59, 30, 0.35));
-      color: var(--gold2);
-    }
-
-    .btn-ghost {
-      border: 1px solid rgba(201, 145, 61, 0.15);
-      background: rgba(245, 239, 227, 0.05);
-      color: var(--muted);
-    }
-
-    .gold-line {
-      text-align: center;
-      font-size: 11px;
-      color: var(--gold-dim);
-      letter-spacing: 0.15em;
-      margin-top: 16px;
-    }
-
-    /* Archive view */
     .archive-header {
-      position: sticky;
-      top: 0;
+      position: sticky; top: 0; z-index: 50; width: 100%;
+      border-bottom: 1px solid var(--stroke2);
       background: rgba(26, 18, 9, 0.88);
-      backdrop-filter: blur(20px);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
       padding: 14px 24px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      border-bottom: 1px solid var(--stroke);
-      z-index: 50;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
     }
+    .archive-header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .archive-header h2 { font-family: var(--font-display); font-size: 20px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .archive-header-badge { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); border: 1px solid var(--stroke); padding: 3px 8px; border-radius: 6px; background: rgba(201, 145, 61, 0.08); white-space: nowrap; }
+    .archive-body { flex: 1; width: 100%; padding: 28px 24px 40px; position: relative; z-index: 1; }
+    .archive-section-title { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--gold-dim); margin-bottom: 18px; font-weight: 500; }
 
-    .archive-header h2 {
-      font-family: var(--font-display);
-      font-size: 20px;
-      font-weight: 500;
-    }
-
-    .archive-body {
-      flex: 1;
-      padding: 28px 24px;
-      overflow-y: auto;
-    }
-
-    .gallery-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-      gap: 16px;
-    }
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; }
+    @media (min-width: 600px) { .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
 
     .artifact-card {
-      border: 1px solid rgba(201, 145, 61, 0.15);
-      border-radius: 16px;
-      background: var(--panel2);
-      backdrop-filter: blur(10px);
-      cursor: pointer;
-      transition: transform 0.22s, border-color 0.2s;
+      border: 1px solid var(--stroke2); border-radius: 16px;
+      background: var(--panel2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+      overflow: hidden; cursor: pointer;
+      transition: transform 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out), border-color 0.2s;
+      animation: cardIn 0.5s var(--ease-out) both;
+      touch-action: manipulation;
+    }
+    .artifact-card:nth-child(2) { animation-delay: 0.06s; }
+    .artifact-card:nth-child(3) { animation-delay: 0.12s; }
+    .artifact-card:nth-child(4) { animation-delay: 0.18s; }
+    .artifact-card:nth-child(5) { animation-delay: 0.24s; }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .artifact-card:hover { transform: translateY(-4px) scale(1.01); box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(201, 145, 61, 0.3); border-color: rgba(201, 145, 61, 0.35); }
+    .artifact-card.selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201, 145, 61, 0.4), 0 16px 40px rgba(0,0,0,0.5); }
+
+    .card-thumb { width: 100%; aspect-ratio: 1; display: grid; place-items: center; background: radial-gradient(ellipse 70% 60% at 50% 40%, rgba(201, 145, 61, 0.12), transparent 70%), rgba(26, 18, 9, 0.6); position: relative; overflow: hidden; }
+    .card-thumb-icon { font-size: 52px; opacity: 0.7; filter: drop-shadow(0 4px 12px rgba(201, 145, 61, 0.3)); transition: transform 0.3s var(--ease-out); }
+    .artifact-card:hover .card-thumb-icon { transform: scale(1.1) rotate(-3deg); }
+    .card-thumb::after { content: ''; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 50%, rgba(255,255,255,0.02) 100%); }
+    .card-info { padding: 12px 14px 14px; border-top: 1px solid var(--stroke2); }
+    .card-name { font-family: var(--font-display); font-size: 15px; font-weight: 500; line-height: 1.2; margin-bottom: 4px; }
+    .card-origin { font-size: 11px; color: var(--gold-dim); letter-spacing: 0.1em; text-transform: uppercase; font-weight: 500; }
+    .card-period { font-size: 11px; color: var(--muted2); margin-top: 2px; }
+
+    /* ══ MODEL VIEWER ══ */
+    #view-model { z-index: 10; padding: 0; align-items: stretch; justify-content: flex-start; }
+
+    .viewer-header {
+      position: sticky; top: 0; z-index: 50; width: 100%;
+      border-bottom: 1px solid var(--stroke2);
+      background: rgba(26, 18, 9, 0.9);
+      backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      padding: 12px 20px;
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    }
+    .viewer-header-left { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .viewer-artifact-name { font-family: var(--font-display); font-size: 18px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .viewer-artifact-origin { font-size: 11px; color: var(--gold); letter-spacing: 0.12em; text-transform: uppercase; margin-top: 1px; font-weight: 500; }
+
+    .viewer-body { flex: 1; display: flex; flex-direction: column; width: 100%; position: relative; min-height: 0; }
+
+    /* Canvas */
+    .viewer-canvas-wrap {
+      flex: 1; position: relative; min-height: 340px;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 40%, rgba(201, 145, 61, 0.1), transparent 65%),
+        radial-gradient(ellipse 80% 70% at 80% 80%, rgba(122, 59, 30, 0.08), transparent 60%),
+        rgba(18, 12, 5, 0.9);
+      overflow: hidden;
+      /* NO cursor:grab — touch handles everything */
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: none; /* let JS handle all touch */
+    }
+    .viewer-canvas-wrap canvas {
+      position: absolute; inset: 0;
+      width: 100% !important; height: 100% !important;
+      pointer-events: none; /* gestures handled by overlay */
+    }
+    #viewer-scene-root {
+      position: absolute; inset: 0;
+      pointer-events: none;
+    }
+    #viewer-scene-root a-scene {
+      position: absolute !important; inset: 0 !important;
+      width: 100% !important; height: 100% !important;
     }
 
-    .artifact-card:hover {
-      transform: translateY(-4px);
-      border-color: rgba(201, 145, 61, 0.35);
-    }
+    /* Loading */
+    .model-loading { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; z-index: 5; background: rgba(18, 12, 5, 0.6); backdrop-filter: blur(4px); }
+    .model-loading.hidden { display: none; }
+    .spinner { width: 42px; height: 42px; border: 2px solid rgba(201, 145, 61, 0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-label { font-size: 13px; color: var(--muted); font-family: var(--font-display); font-style: italic; letter-spacing: 0.08em; }
 
-    .card-thumb {
-      aspect-ratio: 1;
+    .model-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; pointer-events: none; }
+    .model-placeholder.hidden { display: none; }
+    .placeholder-icon { font-size: 64px; opacity: 0.25; }
+    .placeholder-label { font-family: var(--font-display); font-size: 15px; font-style: italic; color: var(--muted2); }
+
+    /* ══ GESTURE GUIDE ══ */
+    .gesture-guide {
+      position: absolute;
+      inset: 0;
+      z-index: 10;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 52px;
-      background: rgba(26, 18, 9, 0.6);
+      pointer-events: none;
+      animation: guideFadeIn 0.5s var(--ease-out) both;
     }
+    .gesture-guide.fading { animation: guideFadeOut 0.7s var(--ease-out) forwards; }
+    .gesture-guide.hidden { display: none; }
+    @keyframes guideFadeIn { from { opacity: 0; transform: scale(0.92); } to { opacity: 1; transform: scale(1); } }
+    @keyframes guideFadeOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.92); } }
 
-    .card-info {
-      padding: 12px 14px;
-      border-top: 1px solid rgba(201, 145, 61, 0.15);
+    .gesture-guide-inner {
+      background: rgba(18, 12, 5, 0.82);
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      padding: 22px 28px 20px;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.6), inset 0 1px 0 rgba(201,145,61,0.1);
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      min-width: 230px;
+      max-width: 280px;
     }
-
-    .card-name {
+    .gesture-guide-title {
       font-family: var(--font-display);
-      font-size: 15px;
+      font-size: 13px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--gold);
+      text-align: center;
       font-weight: 500;
     }
-
-    .card-origin {
-      font-size: 11px;
-      color: var(--gold-dim);
+    .gesture-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .gesture-icon {
+      width: 44px; height: 44px;
+      flex-shrink: 0;
+      border-radius: 12px;
+      border: 1px solid var(--stroke2);
+      background: rgba(201,145,61,0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .gesture-icon svg { width: 26px; height: 26px; }
+    .gesture-text {
+      flex: 1;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+    .gesture-text b { color: var(--text); font-weight: 600; }
+    .gesture-divider { height: 1px; background: var(--stroke2); }
+    .gesture-guide-hint {
+      font-size: 10px;
+      color: var(--muted2);
+      text-align: center;
+      letter-spacing: 0.1em;
       text-transform: uppercase;
     }
 
-    /* Model viewer */
-    .viewer-header {
-      position: sticky;
-      top: 0;
-      background: rgba(26, 18, 9, 0.9);
-      backdrop-filter: blur(20px);
-      padding: 12px 20px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--stroke);
-      z-index: 50;
-    }
-
-    .viewer-artifact-name {
-      font-family: var(--font-display);
-      font-size: 18px;
-      font-weight: 500;
-    }
-
-    .viewer-canvas-wrap {
-      flex: 1;
-      position: relative;
-      background: rgba(18, 12, 5, 0.9);
-      cursor: grab;
-      touch-action: none;
-    }
-
-    .viewer-canvas-wrap:active {
-      cursor: grabbing;
-    }
-
-    #viewer-scene-root {
-      position: absolute;
-      inset: 0;
-    }
-
+    /* ══ VIEWER CONTROLS (reset only) ══ */
     .viewer-controls {
-      padding: 14px 20px;
+      padding: 12px 20px;
+      border-top: 1px solid var(--stroke2);
       background: rgba(26, 18, 9, 0.8);
       backdrop-filter: blur(12px);
-      border-top: 1px solid var(--stroke);
+      -webkit-backdrop-filter: blur(12px);
       display: flex;
-      justify-content: center;
-    }
-
-    .ctrl-btn-reset {
-      border: 1px solid rgba(201, 145, 61, 0.3);
-      background: rgba(201, 145, 61, 0.08);
-      color: var(--gold2);
-      padding: 10px 24px;
-      border-radius: 40px;
-      font-family: var(--font-body);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-    }
-
-    .ctrl-btn-reset:active {
-      transform: scale(0.95);
-    }
-
-    .artifact-meta {
-      padding: 14px 20px;
-      background: rgba(26, 18, 9, 0.6);
-      border-top: 1px solid var(--stroke);
-    }
-
-    .artifact-meta h3 {
-      font-family: var(--font-display);
-      font-size: 14px;
-      color: var(--gold2);
-      margin-bottom: 6px;
-    }
-
-    .artifact-meta p {
-      font-size: 13px;
-      color: var(--muted);
-      line-height: 1.6;
-    }
-
-    /* AR view */
-    #view-ar {
-      background: #000;
-    }
-
-    #ar-root {
-      position: fixed;
-      inset: 0;
-    }
-
-    .ar-hud {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 20;
-    }
-
-    .ar-hud-top {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: 14px 18px;
-      display: flex;
-      justify-content: space-between;
-      background: linear-gradient(180deg, rgba(0,0,0,0.6), transparent);
-      pointer-events: auto;
-    }
-
-    .ar-brand {
-      font-family: var(--font-display);
-      font-size: 16px;
-    }
-
-    .ar-exit-btn {
-      border: 1px solid rgba(201, 145, 61, 0.4);
-      background: rgba(26, 18, 9, 0.7);
-      color: var(--gold2);
-      padding: 7px 14px;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-
-    .ar-reset-btn {
-      position: fixed;
-      bottom: 20px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(26, 18, 9, 0.8);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(201, 145, 61, 0.5);
-      color: var(--gold2);
-      padding: 10px 24px;
-      border-radius: 40px;
-      font-family: var(--font-body);
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      z-index: 21;
-      pointer-events: auto;
-    }
-
-    /* Gesture guide overlay */
-    .gesture-guide {
-      position: fixed;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(16px);
-      border-radius: 60px;
-      padding: 16px 24px;
-      display: flex;
-      gap: 24px;
-      z-index: 100;
-      transition: opacity 0.5s ease;
-      pointer-events: none;
-      border: 1px solid rgba(201, 145, 61, 0.4);
-      white-space: nowrap;
-    }
-
-    .gesture-item {
-      display: flex;
-      flex-direction: column;
       align-items: center;
-      gap: 6px;
-      font-size: 12px;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    /* Floating reset button */
+    .reset-fab {
+      position: absolute;
+      bottom: 16px;
+      right: 16px;
+      z-index: 8;
+      appearance: none;
+      border: 1px solid var(--stroke);
+      background: rgba(26, 18, 9, 0.85);
       color: var(--gold2);
-      font-family: var(--font-body);
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 18px;
+      display: grid;
+      place-items: center;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+      transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+      touch-action: manipulation;
+    }
+    .reset-fab:hover { background: rgba(201,145,61,0.18); box-shadow: 0 6px 20px rgba(201,145,61,0.25); }
+    .reset-fab:active { transform: scale(0.9); }
+
+    /* Artifact meta */
+    .artifact-meta { padding: 14px 20px; background: rgba(26, 18, 9, 0.6); border-top: 1px solid var(--stroke2); }
+    .artifact-meta h3 { font-family: var(--font-display); font-size: 14px; font-weight: 600; color: var(--gold2); margin-bottom: 6px; letter-spacing: 0.04em; }
+    .artifact-meta p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ══ AR VIEW ══ */
+    #view-ar { z-index: 5; background: #000; }
+    #ar-root { position: fixed; inset: 0; z-index: 1; }
+    #ar-root a-scene { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
+    #ar-root canvas, #ar-root video { width: 100% !important; height: 100% !important; }
+    #ar-root video { object-fit: cover; }
+
+    /* AR gesture overlay — receives touch for model manipulation */
+    #ar-gesture-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 9990;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
     }
 
-    .gesture-icon {
-      font-size: 24px;
+    /* AR HUD */
+    .ar-hud { position: fixed; inset: 0; z-index: 9995; pointer-events: none; }
+    .ar-hud-top {
+      position: absolute; top: 0; left: 0; right: 0;
+      padding: 14px 18px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(180deg, rgba(0,0,0,0.6), transparent);
+      pointer-events: all;
     }
+    .ar-brand { font-family: var(--font-display); font-size: 16px; font-weight: 500; color: rgba(245, 239, 227, 0.9); text-shadow: 0 2px 8px rgba(0,0,0,0.6); }
+    .ar-exit-btn { appearance: none; border: 1px solid rgba(201, 145, 61, 0.4); background: rgba(26, 18, 9, 0.7); color: var(--gold2); padding: 7px 14px; border-radius: 10px; font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; transition: background 0.15s; touch-action: manipulation; }
+    .ar-exit-btn:hover { background: rgba(26, 18, 9, 0.9); }
 
-    .gesture-guide.hidden {
-      opacity: 0;
-      visibility: hidden;
-    }
+    .ar-scan-hint { position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%); font-family: var(--font-display); font-size: 15px; font-style: italic; color: rgba(245, 239, 227, 0.85); text-shadow: 0 2px 8px rgba(0,0,0,0.8); text-align: center; white-space: nowrap; pointer-events: none; animation: hintPulse 2.5s ease-in-out infinite; }
+    @keyframes hintPulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
 
-    /* Hide A-Frame UI */
-    .a-enter-vr, .a-enter-ar, .a-orientation-modal {
-      display: none !important;
+    /* AR reset fab */
+    .ar-reset-fab {
+      position: fixed;
+      bottom: 24px;
+      right: 20px;
+      z-index: 9997;
+      appearance: none;
+      border: 1px solid var(--stroke);
+      background: rgba(26, 18, 9, 0.85);
+      color: var(--gold2);
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 20px;
+      display: grid;
+      place-items: center;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      transition: background 0.15s, transform 0.15s;
+      touch-action: manipulation;
     }
+    .ar-reset-fab:active { transform: scale(0.9); background: rgba(201,145,61,0.2); }
 
-    #error-msg {
-      font-size: 13px;
-      color: #ffb99a;
-      display: none;
-      margin-top: 12px;
-      padding: 10px;
-      border-radius: 10px;
-      background: rgba(255, 80, 20, 0.1);
+    /* AR gesture guide overlay */
+    #ar-gesture-guide {
+      position: fixed;
+      inset: 0;
+      z-index: 9996;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
     }
+    #ar-gesture-guide.fading { animation: guideFadeOut 0.7s var(--ease-out) forwards; }
+    #ar-gesture-guide.hidden { display: none; }
 
-    @media (max-width: 600px) {
-      .gesture-guide { padding: 12px 18px; gap: 16px; }
-      .gesture-item { font-size: 10px; }
-      .gesture-icon { font-size: 20px; }
-    }
+    /* A-Frame built-in UI hiding */
+    .a-enter-vr, .a-enter-vr-button, .a-enter-ar-button,
+    .a-orientation-modal, .a-dialog-container, .a-modal { display: none !important; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(201, 145, 61, 0.3); border-radius: 99px; }
   </style>
 </head>
-
 <body>
 
   <div class="museum-bg"></div>
 
-  <!-- LANDING VIEW -->
+  <!-- ══ VIEW 1: LANDING ══ -->
   <div id="view-landing" class="view active">
     <div class="landing-inner">
       <div class="logo-bar">
-        <div class="logo-gem"></div>
+        <div class="logo-gem" aria-hidden="true"></div>
         <div class="logo-text">
           <h1>Subangan ARchive</h1>
           <div class="subtitle">Cultural Heritage · Davao Oriental</div>
@@ -542,112 +539,223 @@
       <div class="hero-panel">
         <div class="hero-eyebrow">✦ Digital Museum Prototype</div>
         <h2 class="hero-title">Bridging the past<br>through <em>augmented reality</em></h2>
-        <p class="hero-body">Explore 3D digitized artifacts from Davao Oriental in AR or browse the archive gallery.</p>
+        <p class="hero-body">
+          Explore 3D digitized artifacts from Davao Oriental in AR or browse the archive gallery — no camera needed. Point your device at a marker to see history come alive, or discover artifacts at your own pace.
+        </p>
       </div>
 
       <div class="info-grid">
         <div class="info-panel">
           <h3>Quick Start · AR Mode</h3>
-          <div class="step-row">
-            <div class="step-num">1</div>
-            <p>Tap <b>Start AR</b> and allow camera access.</p>
-          </div>
-          <div class="step-row">
-            <div class="step-num">2</div>
-            <p>Point camera at the <b>QR marker</b>.</p>
-          </div>
-          <div class="step-row">
-            <div class="step-num">3</div>
-            <p><b>Touch & drag</b> on the 3D model to interact.</p>
-          </div>
+          <ul class="steps-list">
+            <li class="step-row">
+              <div class="step-num">1</div>
+              <p>Tap <b>Start AR</b> and allow camera access.</p>
+            </li>
+            <li class="step-row">
+              <div class="step-num">2</div>
+              <p>Point camera at the <b>Hiro marker</b> or QR code.</p>
+            </li>
+            <li class="step-row">
+              <div class="step-num">3</div>
+              <p><b>Touch gestures</b> — drag to rotate, pinch to zoom, two-finger drag for height.</p>
+            </li>
+          </ul>
         </div>
-
         <div class="info-panel">
-          <h3>Gesture Controls</h3>
-          <div class="step-row">
-            <div class="step-num">👆</div>
-            <p>Drag left/right → <b>Rotate</b> 360°</p>
-          </div>
-          <div class="step-row">
-            <div class="step-num">✌️</div>
-            <p>Pinch → <b>Zoom</b> in/out</p>
-          </div>
-          <div class="step-row">
-            <div class="step-num">✌️</div>
-            <p>Two-finger drag up/down → <b>Adjust height</b></p>
-          </div>
+          <h3>Archive Gallery Mode</h3>
+          <p class="notes-text">
+            Browse digitized artifacts <b>without a camera</b>. Tap <b>Open Archive</b> — then use <b>touch gestures</b> to interact: one finger to rotate, pinch to zoom, two fingers up/down for height.
+            <br><br>
+            <b>AR Note:</b> Works best on <b>Chrome</b> (Android) or <b>Safari</b> (iOS). Ensure camera permissions are allowed.
+          </p>
         </div>
       </div>
 
       <div class="action-row">
-        <button id="btn-start-ar" class="btn btn-primary">📷 Start AR</button>
-        <button id="btn-open-archive" class="btn btn-gold">🏛 Open Archive</button>
+        <button id="btn-start-ar" class="btn btn-primary"><span>📷</span> Start AR</button>
+        <button id="btn-open-archive" class="btn btn-gold"><span>🏛</span> Open Archive</button>
+        <a href="./qr-code.png" target="_blank" rel="noopener" class="btn btn-ghost"><span>🔲</span> View Marker</a>
       </div>
 
       <div id="error-msg"></div>
-      <div class="gold-line">Subangan ARchive System · Gesture Controlled</div>
+      <div class="gold-line">Subangan ARchive System · Prototype</div>
     </div>
   </div>
 
-  <!-- ARCHIVE VIEW -->
+  <!-- ══ VIEW 2: ARCHIVE GALLERY ══ -->
   <div id="view-archive" class="view">
-    <div class="archive-header">
-      <button id="btn-archive-back" class="btn btn-ghost" style="padding:8px 12px;">← Back</button>
-      <h2>Artifact Archive</h2>
+    <div class="museum-bg" style="position:fixed;z-index:0;pointer-events:none;"></div>
+    <div class="archive-header" style="z-index:51;">
+      <div class="archive-header-left">
+        <button class="btn btn-ghost" style="padding:8px 12px;font-size:13px;" id="btn-archive-back">← Back</button>
+        <h2 class="archive-header">Artifact Archive</h2>
+        <span class="archive-header-badge">Davao Oriental</span>
+      </div>
     </div>
-    <div class="archive-body">
+    <div class="archive-body" style="position:relative;z-index:1;">
+      <div class="archive-section-title">Collection — Select an artifact to view</div>
       <div class="gallery-grid" id="gallery-grid"></div>
     </div>
   </div>
 
-  <!-- MODEL VIEWER -->
+  <!-- ══ VIEW 3: 3D MODEL VIEWER ══ -->
   <div id="view-model" class="view">
     <div class="viewer-header">
-      <button id="btn-model-back" class="btn btn-ghost" style="padding:8px 12px;">← Gallery</button>
-      <div class="viewer-artifact-name" id="viewer-name">Artifact</div>
-      <button id="btn-viewer-ar" class="btn btn-ghost" style="padding:8px 12px;">📷 AR</button>
+      <div class="viewer-header-left">
+        <button class="btn btn-ghost" style="padding:8px 12px;font-size:13px;" id="btn-model-back">← Gallery</button>
+        <div>
+          <div class="viewer-artifact-name" id="viewer-name">Artifact</div>
+          <div class="viewer-artifact-origin" id="viewer-origin">Davao Oriental</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px;" id="btn-viewer-ar">📷 View in AR</button>
     </div>
 
-    <div class="viewer-canvas-wrap" id="viewer-canvas-wrap">
-      <div id="viewer-scene-root"></div>
-    </div>
+    <div class="viewer-body">
+      <div class="viewer-canvas-wrap" id="viewer-canvas-wrap">
+        <div class="model-loading" id="model-loading">
+          <div class="spinner"></div>
+          <div class="loading-label">Loading artifact…</div>
+        </div>
+        <div class="model-placeholder" id="model-placeholder">
+          <div class="placeholder-icon">🏺</div>
+          <div class="placeholder-label">3D model preview</div>
+        </div>
+        <div id="viewer-scene-root"></div>
 
-    <div class="viewer-controls">
-      <button id="ctrl-reset" class="ctrl-btn-reset">↺ Reset View</button>
-    </div>
+        <!-- Gesture Guide (viewer) -->
+        <div class="gesture-guide" id="viewer-gesture-guide">
+          <div class="gesture-guide-inner">
+            <div class="gesture-guide-title">Touch Controls</div>
+            <div class="gesture-row">
+              <div class="gesture-icon">
+                <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="13" cy="10" r="3" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+                  <path d="M7 13 L4 13 M19 13 L22 13" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round"/>
+                  <path d="M5 11 L3 13 L5 15 M21 11 L23 13 L21 15" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M13 18 C13 18 10 22 8 22 C6 22 6 20 8 20 C10 20 13 18 13 18Z" fill="#c9913d" opacity="0.7"/>
+                </svg>
+              </div>
+              <div class="gesture-text"><b>Rotate</b> — Drag one finger left or right</div>
+            </div>
+            <div class="gesture-divider"></div>
+            <div class="gesture-row">
+              <div class="gesture-icon">
+                <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="9" cy="11" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+                  <circle cx="17" cy="11" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+                  <path d="M5 19 C5 19 7 16 9 16 M21 19 C21 19 19 16 17 16" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round"/>
+                  <path d="M11.5 8 L14.5 8" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1 1.5"/>
+                </svg>
+              </div>
+              <div class="gesture-text"><b>Zoom</b> — Pinch two fingers together or apart</div>
+            </div>
+            <div class="gesture-divider"></div>
+            <div class="gesture-row">
+              <div class="gesture-icon">
+                <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="9" cy="12" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+                  <circle cx="17" cy="12" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+                  <path d="M9 8 L9 5 M9 7 L7 5 M9 7 L11 5" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                  <path d="M17 16 L17 19 M17 17 L15 19 M17 17 L19 19" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="gesture-text"><b>Height</b> — Drag two fingers up or down</div>
+            </div>
+            <div class="gesture-guide-hint">Tap to dismiss</div>
+          </div>
+        </div>
 
-    <div class="artifact-meta" id="artifact-meta">
-      <h3 id="meta-title">Artifact</h3>
-      <p id="meta-desc">Loading artifact information...</p>
+        <!-- Reset FAB -->
+        <button class="reset-fab" id="viewer-reset-fab" title="Reset view">↺</button>
+      </div>
+
+      <div class="artifact-meta" id="artifact-meta">
+        <h3 id="meta-title">Artifact</h3>
+        <p id="meta-desc">Loading artifact information…</p>
+      </div>
     </div>
   </div>
 
-  <!-- AR VIEW -->
+  <!-- ══ VIEW 4: AR MODE ══ -->
   <div id="view-ar" class="view">
     <div id="ar-root"></div>
+
+    <!-- Touch layer for AR gestures -->
+    <div id="ar-gesture-layer"></div>
+
+    <!-- AR Gesture Guide -->
+    <div id="ar-gesture-guide">
+      <div class="gesture-guide-inner">
+        <div class="gesture-guide-title">Touch Controls</div>
+        <div class="gesture-row">
+          <div class="gesture-icon">
+            <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="13" cy="10" r="3" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+              <path d="M7 13 L4 13 M19 13 L22 13" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M5 11 L3 13 L5 15 M21 11 L23 13 L21 15" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M13 18 C13 18 10 22 8 22 C6 22 6 20 8 20 C10 20 13 18 13 18Z" fill="#c9913d" opacity="0.7"/>
+            </svg>
+          </div>
+          <div class="gesture-text"><b>Rotate</b> — Drag one finger left or right</div>
+        </div>
+        <div class="gesture-divider"></div>
+        <div class="gesture-row">
+          <div class="gesture-icon">
+            <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="9" cy="11" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+              <circle cx="17" cy="11" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+              <path d="M5 19 C5 19 7 16 9 16 M21 19 C21 19 19 16 17 16" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round"/>
+              <path d="M11.5 8 L14.5 8" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1 1.5"/>
+            </svg>
+          </div>
+          <div class="gesture-text"><b>Zoom</b> — Pinch two fingers together or apart</div>
+        </div>
+        <div class="gesture-divider"></div>
+        <div class="gesture-row">
+          <div class="gesture-icon">
+            <svg viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="9" cy="12" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+              <circle cx="17" cy="12" r="2.5" fill="none" stroke="#c9913d" stroke-width="1.5"/>
+              <path d="M9 8 L9 5 M9 7 L7 5 M9 7 L11 5" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M17 16 L17 19 M17 17 L15 19 M17 17 L19 19" stroke="#c9913d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="gesture-text"><b>Height</b> — Drag two fingers up or down</div>
+        </div>
+        <div class="gesture-guide-hint">Touch model to dismiss</div>
+      </div>
+    </div>
+
+    <!-- AR HUD -->
     <div class="ar-hud">
       <div class="ar-hud-top">
         <div class="ar-brand">Subangan ARchive</div>
-        <button class="ar-exit-btn" id="btn-ar-exit">✕ Exit</button>
+        <button class="ar-exit-btn" id="btn-ar-exit">✕ Exit AR</button>
       </div>
+      <div class="ar-scan-hint" id="ar-scan-hint">Point camera at marker to reveal artifact</div>
     </div>
-    <button class="ar-reset-btn" id="ar-reset">↺ Reset View</button>
+
+    <!-- AR Reset FAB -->
+    <button class="ar-reset-fab" id="ar-reset-fab" title="Reset model">↺</button>
   </div>
 
   <script>
-  (function() {
-    // ============================================================
-    // ARTIFACT DATA
-    // ============================================================
+  (function () {
+    'use strict';
+
+    /* ── ARTIFACTS DATA ── */
     const ARTIFACTS = [
       {
-        id: 'heritage-1',
+        id: 'archive-artifact',
         name: 'Heritage Artifact',
         origin: 'Davao Oriental',
         period: 'Pre-Colonial Period',
         icon: '🏺',
         model: './artifacts2.glb',
-        description: 'A digitized cultural artifact from Davao Oriental preserved through the Subangan ARchive System.'
+        description: 'A digitized cultural artifact from Davao Oriental, preserved and presented through the Subangan ARchive System. Explore it in full 3D — rotate, zoom, and examine every detail without visiting a physical museum.',
+        defaultRotation: 0, defaultScale: 0.6, defaultY: 0,
       },
       {
         id: 'mandaya-weaving',
@@ -656,7 +764,8 @@
         period: 'Traditional',
         icon: '🧵',
         model: './artifacts2.glb',
-        description: 'A fragment of traditional Mandaya woven textile featuring intricate geometric patterns.'
+        description: 'A fragment of traditional Mandaya woven textile featuring intricate geometric patterns. The Mandaya people are renowned for their ikat-dyed fabrics called "dagmay," woven from abacá fiber using patterns passed down through generations.',
+        defaultRotation: 0, defaultScale: 0.6, defaultY: 0,
       },
       {
         id: 'stone-adze',
@@ -665,78 +774,125 @@
         period: 'c. 2000–500 BCE',
         icon: '🪨',
         model: './artifacts2.glb',
-        description: 'A polished stone adze used for woodworking and canoe construction.'
-      }
+        description: 'A polished stone adze used for woodworking and canoe construction. Its smooth, carefully crafted blade indicates the skill of early craftspeople who inhabited the coastal settlements of what is now Davao Oriental.',
+        defaultRotation: 0, defaultScale: 0.6, defaultY: 0,
+      },
+      {
+        id: 'gold-ornament',
+        name: 'Gold Funerary Ornament',
+        origin: 'Mati, Davao Oriental',
+        period: 'c. 10th–14th Century CE',
+        icon: '⭕',
+        model: './artifacts2.glb',
+        description: 'A delicate gold ornament recovered from burial sites. Signifying status and spiritual protection, such pieces demonstrate the region\'s connections to wider Southeast Asian trade networks and goldsmithing traditions.',
+        defaultRotation: 0, defaultScale: 0.6, defaultY: 0,
+      },
+      {
+        id: 'ritual-jar',
+        name: 'Trade Porcelain Jar',
+        origin: 'Boston, Davao Oriental',
+        period: 'c. 14th–16th Century CE',
+        icon: '🫙',
+        model: './artifacts2.glb',
+        description: 'A glazed stoneware jar from Chinese trade networks, found in eastern Davao archaeological sites. Its presence reveals the region\'s role in early maritime trade routes that connected Southeast Asia, China, and the wider Pacific.',
+        defaultRotation: 0, defaultScale: 0.6, defaultY: 0,
+      },
     ];
 
-    // ============================================================
-    // VIEW MANAGEMENT
-    // ============================================================
+    const DEFAULTS = { scale: 0.6, y: 0, rot: 0 };
+    const ROT_STEP_PX = 0.4;
+    const ZOOM_SENSITIVITY = 0.008;
+    const Y_SENSITIVITY = 0.004;
+    const MIN_SCALE = 0.08;
+    const MAX_SCALE = 3.0;
+
+    /* ── VIEW MANAGER ── */
     const views = {
       landing: document.getElementById('view-landing'),
       archive: document.getElementById('view-archive'),
-      model: document.getElementById('view-model'),
-      ar: document.getElementById('view-ar')
+      model:   document.getElementById('view-model'),
+      ar:      document.getElementById('view-ar'),
     };
 
     function showView(name) {
-      Object.keys(views).forEach(k => {
-        views[k].classList.toggle('active', k === name);
-      });
+      Object.entries(views).forEach(([k, el]) => el.classList.toggle('active', k === name));
+      const el = views[name];
+      if (el) el.scrollTop = 0;
     }
 
-    // ============================================================
-    // GALLERY
-    // ============================================================
+    /* ── GALLERY ── */
     const galleryGrid = document.getElementById('gallery-grid');
 
     function buildGallery() {
       galleryGrid.innerHTML = '';
-      ARTIFACTS.forEach(artifact => {
+      ARTIFACTS.forEach((artifact) => {
         const card = document.createElement('div');
         card.className = 'artifact-card';
+        card.dataset.id = artifact.id;
         card.innerHTML = `
-          <div class="card-thumb"><span style="font-size:52px;">${artifact.icon}</span></div>
+          <div class="card-thumb">
+            <div class="card-thumb-icon">${artifact.icon}</div>
+          </div>
           <div class="card-info">
             <div class="card-name">${artifact.name}</div>
             <div class="card-origin">${artifact.origin}</div>
-          </div>
-        `;
+            <div class="card-period">${artifact.period}</div>
+          </div>`;
         card.addEventListener('click', () => openModelViewer(artifact));
         galleryGrid.appendChild(card);
       });
     }
 
-    // ============================================================
-    // MODEL VIEWER (GESTURE CONTROLLED)
-    // ============================================================
+    /* ── GESTURE GUIDE HELPER ── */
+    function showGestureGuide(guideEl, autoHideMs = 6000) {
+      guideEl.classList.remove('hidden', 'fading');
+      let timer = setTimeout(() => dismissGuide(guideEl), autoHideMs);
+
+      function dismissGuide(el) {
+        clearTimeout(timer);
+        el.classList.add('fading');
+        el.addEventListener('animationend', () => el.classList.add('hidden'), { once: true });
+      }
+
+      // Dismiss on tap
+      const onTap = () => dismissGuide(guideEl);
+      guideEl.addEventListener('pointerdown', onTap, { once: true });
+
+      return { dismiss: onTap };
+    }
+
+    /* ── 3D MODEL VIEWER ── */
     let currentArtifact = null;
-    let viewerModelEntity = null;
-    let viewerRotY = 0;
-    let viewerScale = 0.6;
-    let viewerHeight = 0;
     let viewerScene = null;
+    let modelEntity = null;
+    let modelRot = 0, modelScale = 0.6, modelY = 0;
 
-    // Touch state for gestures
-    let initialDistance = 0;
-    let initialScale = 0.6;
-    let initialY = 0;
-    let initialTouchY = 0;
-    let isTwoFingerDrag = false;
-    let startRotX = 0;
-    let startRotYValue = 0;
-    let isDragging = false;
+    function openModelViewer(artifact) {
+      currentArtifact = artifact;
+      modelRot   = artifact.defaultRotation ?? DEFAULTS.rot;
+      modelScale = artifact.defaultScale    ?? DEFAULTS.scale;
+      modelY     = artifact.defaultY        ?? DEFAULTS.y;
 
-    function updateViewerTransform() {
-      if (!viewerModelEntity) return;
-      viewerModelEntity.setAttribute('rotation', `0 ${viewerRotY} 0`);
-      viewerModelEntity.setAttribute('scale', `${viewerScale} ${viewerScale} ${viewerScale}`);
-      viewerModelEntity.setAttribute('position', `0 ${viewerHeight} 0`);
+      document.getElementById('viewer-name').textContent   = artifact.name;
+      document.getElementById('viewer-origin').textContent = artifact.origin;
+      document.getElementById('meta-title').textContent    = `${artifact.name} · ${artifact.period}`;
+      document.getElementById('meta-desc').textContent     = artifact.description;
+
+      showView('model');
+      injectViewerScene(artifact);
+
+      document.querySelectorAll('.artifact-card').forEach(c =>
+        c.classList.toggle('selected', c.dataset.id === artifact.id));
     }
 
     function injectViewerScene(artifact) {
       const root = document.getElementById('viewer-scene-root');
       root.innerHTML = '';
+
+      const loading     = document.getElementById('model-loading');
+      const placeholder = document.getElementById('model-placeholder');
+      loading.classList.remove('hidden');
+      placeholder.classList.add('hidden');
 
       const sceneEl = document.createElement('a-scene');
       sceneEl.setAttribute('embedded', '');
@@ -749,313 +905,447 @@
         <a-light type="ambient" color="#f5e8c8" intensity="0.6"></a-light>
         <a-light type="directional" position="2 4 3" intensity="1.2" color="#ffe5a0"></a-light>
         <a-light type="directional" position="-3 2 -2" intensity="0.4" color="#c9a0dc"></a-light>
-        <a-gltf-model id="viewer-model" src="${artifact.model}" position="0 ${viewerHeight} 0" rotation="0 ${viewerRotY} 0" scale="${viewerScale} ${viewerScale} ${viewerScale}"></a-gltf-model>
-      `;
+        <a-entity id="model-pivot" position="0 0 0">
+          <a-gltf-model
+            id="viewer-model"
+            src="${artifact.model}"
+            position="0 ${modelY} 0"
+            rotation="0 ${modelRot} 0"
+            scale="${modelScale} ${modelScale} ${modelScale}"
+          ></a-gltf-model>
+        </a-entity>`;
 
       root.appendChild(sceneEl);
       viewerScene = sceneEl;
 
-      sceneEl.addEventListener('loaded', () => {
-        viewerModelEntity = sceneEl.querySelector('#viewer-model');
-        showGestureGuide();
-      });
+      const hideLoader = () => {
+        loading.classList.add('hidden');
+        modelEntity = sceneEl.querySelector('#viewer-model');
+      };
+
+      sceneEl.addEventListener('loaded', hideLoader, { once: true });
+      sceneEl.addEventListener('model-loaded', hideLoader, { once: true });
+      setTimeout(() => {
+        loading.classList.add('hidden');
+        if (!modelEntity) modelEntity = sceneEl.querySelector('#viewer-model');
+      }, 5000);
+
+      // Show gesture guide after scene injects
+      setTimeout(() => {
+        const guide = document.getElementById('viewer-gesture-guide');
+        showGestureGuide(guide, 6000);
+      }, 800);
     }
 
-    function openModelViewer(artifact) {
-      currentArtifact = artifact;
-      viewerRotY = 0;
-      viewerScale = 0.6;
-      viewerHeight = 0;
-
-      document.getElementById('viewer-name').textContent = artifact.name;
-      document.getElementById('meta-title').textContent = `${artifact.name} · ${artifact.period}`;
-      document.getElementById('meta-desc').textContent = artifact.description;
-
-      injectViewerScene(artifact);
-      showView('model');
+    function applyViewerTransform() {
+      if (!modelEntity) return;
+      modelEntity.setAttribute('rotation', `0 ${modelRot} 0`);
+      modelEntity.setAttribute('scale', `${modelScale} ${modelScale} ${modelScale}`);
+      modelEntity.setAttribute('position', `0 ${modelY} 0`);
     }
 
-    // ============================================================
-    // AR MODE (GESTURE CONTROLLED)
-    // ============================================================
-    let arModelEntity = null;
-    let arRotY = 0;
-    let arScale = 0.6;
-    let arHeight = 0;
-    let arStarted = false;
+    /* ── TOUCH GESTURE ENGINE (shared) ── */
+    function attachGestures(element, getters, setters, onGestureStart) {
+      // getters: () => { rot, scale, y }
+      // setters: (rot, scale, y) => void
+      let touches = {};
+      let lastX = null;
+      let lastMidY = null;
+      let lastPinchDist = null;
+      let isGesturing = false;
 
-    function updateARTransform() {
-      if (!arModelEntity) return;
-      arModelEntity.setAttribute('rotation', `0 ${arRotY} 0`);
-      arModelEntity.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
-      arModelEntity.setAttribute('position', `0 ${arHeight} 0`);
-    }
-
-    function injectARScene() {
-      const arRoot = document.getElementById('ar-root');
-      arRoot.innerHTML = '';
-
-      arRoot.innerHTML = `
-        <a-scene
-          embedded
-          vr-mode-ui="enabled: false"
-          renderer="antialias: true; alpha: true"
-          mindar-image="imageTargetSrc: ./qr-target.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no;"
-        >
-          <a-anchor targetIndex="0">
-            <a-entity id="ar-pivot">
-              <a-gltf-model
-                id="ar-model"
-                src="./artifacts1.glb"
-                position="0 0 0"
-                rotation="0 0 0"
-                scale="0.6 0.6 0.6"
-              ></a-gltf-model>
-            </a-entity>
-          </a-anchor>
-          <a-entity camera></a-entity>
-          <a-light type="ambient" intensity="0.6"></a-light>
-          <a-light type="directional" position="2 4 3" intensity="1.2"></a-light>
-        </a-scene>
-      `;
-
-      const scene = arRoot.querySelector('a-scene');
-      if (scene) {
-        scene.addEventListener('loaded', () => {
-          setTimeout(() => {
-            arModelEntity = scene.querySelector('#ar-model');
-            if (arModelEntity) {
-              arRotY = 0;
-              arScale = 0.6;
-              arHeight = 0;
-              updateARTransform();
-              showGestureGuide();
-            }
-          }, 1000);
-        });
+      function getTouches(e) {
+        const list = {};
+        for (const t of e.touches) list[t.identifier] = { x: t.clientX, y: t.clientY };
+        return list;
       }
-    }
 
-    function startAR() {
-      if (arStarted) return;
-      arStarted = true;
-      showView('ar');
-      injectARScene();
-    }
+      function pinchDist(t) {
+        const ids = Object.keys(t);
+        if (ids.length < 2) return null;
+        const a = t[ids[0]], b = t[ids[1]];
+        return Math.hypot(b.x - a.x, b.y - a.y);
+      }
 
-    function stopAR() {
-      arStarted = false;
-      document.getElementById('ar-root').innerHTML = '';
-      showView('landing');
-    }
-
-    // ============================================================
-    // GESTURE HANDLER (Unified for both viewer and AR)
-    // ============================================================
-    function attachGestureControls(element, handlers) {
-      if (!element) return;
-
-      // One-finger drag for rotation
-      let dragStartX = 0;
-      let dragStartRot = 0;
-      let isDraggingRot = false;
-
-      // Two-finger pinch for zoom
-      let initialPinchDistance = 0;
-      let initialZoomScale = 0.6;
-
-      // Two-finger vertical drag for height
-      let initialTwoFingerY = 0;
-      let initialHeightValue = 0;
+      function midY(t) {
+        const ids = Object.keys(t);
+        if (ids.length < 2) return null;
+        return (t[ids[0]].y + t[ids[1]].y) / 2;
+      }
 
       element.addEventListener('touchstart', (e) => {
         e.preventDefault();
-        
-        if (e.touches.length === 1) {
-          // Rotation drag
-          isDraggingRot = true;
-          dragStartX = e.touches[0].clientX;
-          dragStartRot = handlers.getRot ? handlers.getRot() : 0;
-        } 
-        else if (e.touches.length === 2) {
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
-          initialPinchDistance = Math.sqrt(dx * dx + dy * dy);
-          initialZoomScale = handlers.getScale ? handlers.getScale() : 0.6;
-          
-          initialTwoFingerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-          initialHeightValue = handlers.getHeight ? handlers.getHeight() : 0;
+        touches = getTouches(e);
+        const count = Object.keys(touches).length;
+
+        if (count === 1) {
+          const id = Object.keys(touches)[0];
+          lastX = touches[id].x;
+          lastMidY = null;
+          lastPinchDist = null;
+        } else if (count >= 2) {
+          lastPinchDist = pinchDist(touches);
+          lastMidY = midY(touches);
+          lastX = null;
+        }
+
+        if (!isGesturing) {
+          isGesturing = true;
+          if (onGestureStart) onGestureStart();
         }
       }, { passive: false });
 
       element.addEventListener('touchmove', (e) => {
         e.preventDefault();
-        
-        if (e.touches.length === 1 && isDraggingRot) {
-          const deltaX = e.touches[0].clientX - dragStartX;
-          const newRot = dragStartRot + deltaX * 0.5;
-          handlers.setRot(newRot);
-        } 
-        else if (e.touches.length === 2) {
-          const dx = e.touches[0].clientX - e.touches[1].clientX;
-          const dy = e.touches[0].clientY - e.touches[1].clientY;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          
+        touches = getTouches(e);
+        const count = Object.keys(touches).length;
+        const state = getters();
+        let { rot, scale, y } = state;
+
+        if (count === 1 && lastX !== null) {
+          const id = Object.keys(touches)[0];
+          const dx = touches[id].x - lastX;
+          rot += dx * ROT_STEP_PX;
+          lastX = touches[id].x;
+        } else if (count >= 2) {
           // Pinch zoom
-          const newScale = initialZoomScale * (distance / initialPinchDistance);
-          handlers.setScale(Math.min(Math.max(newScale, 0.15), 2.5));
-          
-          // Two-finger vertical drag for height
-          const currentCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
-          const deltaY = currentCenterY - initialTwoFingerY;
-          const newHeight = initialHeightValue + deltaY * 0.008;
-          handlers.setHeight(Math.min(Math.max(newHeight, -1.5), 1.5));
-          
-          // Update for continuous gesture
-          initialZoomScale = handlers.getScale();
-          initialPinchDistance = distance;
-          initialHeightValue = handlers.getHeight();
-          initialTwoFingerY = currentCenterY;
+          const dist = pinchDist(touches);
+          if (dist !== null && lastPinchDist !== null) {
+            const dDist = dist - lastPinchDist;
+            scale = Math.min(Math.max(scale + dDist * ZOOM_SENSITIVITY, MIN_SCALE), MAX_SCALE);
+          }
+          lastPinchDist = dist;
+
+          // Two-finger drag Y
+          const mY = midY(touches);
+          if (mY !== null && lastMidY !== null) {
+            const dY = mY - lastMidY;
+            y -= dY * Y_SENSITIVITY;
+          }
+          lastMidY = mY;
+          lastX = null;
         }
+
+        setters(rot, scale, y);
       }, { passive: false });
 
-      element.addEventListener('touchend', () => {
-        isDraggingRot = false;
+      element.addEventListener('touchend', (e) => {
+        touches = getTouches(e);
+        const count = Object.keys(touches).length;
+        if (count === 0) {
+          lastX = null; lastMidY = null; lastPinchDist = null;
+          isGesturing = false;
+        } else if (count === 1) {
+          const id = Object.keys(touches)[0];
+          lastX = touches[id].x;
+          lastMidY = null; lastPinchDist = null;
+        }
+      }, { passive: true });
+
+      // Mouse drag (desktop fallback — one finger only)
+      let mouseDown = false, lastMouseX = null;
+      element.addEventListener('mousedown', (e) => {
+        mouseDown = true; lastMouseX = e.clientX;
+        if (onGestureStart) onGestureStart();
       });
+      element.addEventListener('mousemove', (e) => {
+        if (!mouseDown) return;
+        const dx = e.clientX - lastMouseX;
+        const state = getters();
+        setters(state.rot + dx * ROT_STEP_PX, state.scale, state.y);
+        lastMouseX = e.clientX;
+      });
+      element.addEventListener('mouseup', () => { mouseDown = false; });
+      element.addEventListener('mouseleave', () => { mouseDown = false; });
+
+      // Mouse wheel zoom
+      element.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const state = getters();
+        const delta = e.deltaY > 0 ? -0.05 : 0.05;
+        setters(state.rot, Math.min(Math.max(state.scale + delta, MIN_SCALE), MAX_SCALE), state.y);
+      }, { passive: false });
     }
 
-    // ============================================================
-    // GESTURE GUIDE
-    // ============================================================
-    let currentGuide = null;
-    
-    function showGestureGuide() {
-      if (currentGuide) {
-        currentGuide.remove();
+    // Attach gestures to viewer canvas
+    const canvasWrap = document.getElementById('viewer-canvas-wrap');
+    attachGestures(
+      canvasWrap,
+      () => ({ rot: modelRot, scale: modelScale, y: modelY }),
+      (rot, scale, y) => {
+        modelRot = rot; modelScale = scale; modelY = y;
+        applyViewerTransform();
+      },
+      () => {
+        // Dismiss gesture guide on first touch
+        const guide = document.getElementById('viewer-gesture-guide');
+        if (!guide.classList.contains('hidden') && !guide.classList.contains('fading')) {
+          guide.classList.add('fading');
+          guide.addEventListener('animationend', () => guide.classList.add('hidden'), { once: true });
+        }
       }
-      
-      currentGuide = document.createElement('div');
-      currentGuide.className = 'gesture-guide';
-      currentGuide.innerHTML = `
-        <div class="gesture-item"><span class="gesture-icon">👆</span><span>Drag → Rotate</span></div>
-        <div class="gesture-item"><span class="gesture-icon">✌️</span><span>Pinch → Zoom</span></div>
-        <div class="gesture-item"><span class="gesture-icon">✌️⬆️⬇️</span><span>Two-finger drag → Height</span></div>
-      `;
-      document.body.appendChild(currentGuide);
-      
-      setTimeout(() => {
-        if (currentGuide) {
-          currentGuide.classList.add('hidden');
-          setTimeout(() => {
-            if (currentGuide) currentGuide.remove();
-            currentGuide = null;
-          }, 500);
-        }
-      }, 5000);
+    );
+
+    // Viewer reset
+    document.getElementById('viewer-reset-fab').addEventListener('click', () => {
+      if (!currentArtifact) return;
+      modelRot   = currentArtifact.defaultRotation ?? DEFAULTS.rot;
+      modelScale = currentArtifact.defaultScale    ?? DEFAULTS.scale;
+      modelY     = currentArtifact.defaultY        ?? DEFAULTS.y;
+      applyViewerTransform();
+    });
+
+    // Tap gesture guide to dismiss
+    document.getElementById('viewer-gesture-guide').addEventListener('pointerdown', function () {
+      this.classList.add('fading');
+      this.addEventListener('animationend', () => this.classList.add('hidden'), { once: true });
+    });
+
+    /* ── AR MODE ── */
+    let arStarted = false;
+    let arRot = 0, arScale = 0.6, arY = 0;
+    let arModelEntity = null;
+
+    function applyARTransform() {
+      if (!arModelEntity) return;
+      arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
+      arModelEntity.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
+      arModelEntity.setAttribute('position', `0 ${arY} 0`);
     }
 
-    // ============================================================
-    // CONNECT GESTURES TO VIEWER
-    // ============================================================
-    function connectViewerGestures() {
-      const canvasWrap = document.getElementById('viewer-canvas-wrap');
-      if (!canvasWrap) return;
-      
-      attachGestureControls(canvasWrap, {
-        getRot: () => viewerRotY,
-        setRot: (val) => { viewerRotY = val; updateViewerTransform(); },
-        getScale: () => viewerScale,
-        setScale: (val) => { viewerScale = val; updateViewerTransform(); },
-        getHeight: () => viewerHeight,
-        setHeight: (val) => { viewerHeight = val; updateViewerTransform(); }
+    // Attach gestures to AR layer
+    const arGestureLayer = document.getElementById('ar-gesture-layer');
+    attachGestures(
+      arGestureLayer,
+      () => ({ rot: arRot, scale: arScale, y: arY }),
+      (rot, scale, y) => {
+        arRot = rot; arScale = scale; arY = y;
+        applyARTransform();
+      },
+      () => {
+        // Dismiss AR gesture guide on first touch
+        const guide = document.getElementById('ar-gesture-guide');
+        if (!guide.classList.contains('hidden') && !guide.classList.contains('fading')) {
+          guide.classList.add('fading');
+          guide.addEventListener('animationend', () => guide.classList.add('hidden'), { once: true });
+        }
+      }
+    );
+
+    // AR reset
+    document.getElementById('ar-reset-fab').addEventListener('click', () => {
+      arRot = 0; arScale = 0.6; arY = 0;
+      applyARTransform();
+    });
+
+    const errorMsg = document.getElementById('error-msg');
+    function showError(msg) { errorMsg.style.display = msg ? 'block' : 'none'; errorMsg.textContent = msg || ''; }
+    function hideError() { errorMsg.style.display = 'none'; }
+
+    /* ── CAMERA PREFLIGHT (improved) ── */
+    async function preflightCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error('Camera API not available in this browser.');
+      }
+
+      // Try to get the stream directly — this triggers the permission prompt
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        audio: false
+      });
+      // Stop tracks immediately; MindAR will open camera again
+      stream.getTracks().forEach(t => t.stop());
+    }
+
+    /* ── AR SCENE INJECTION (improved) ── */
+    function injectARScene() {
+      const arRoot = document.getElementById('ar-root');
+      arRoot.innerHTML = '';
+      arRot = 0; arScale = 0.6; arY = 0; arModelEntity = null;
+
+      // Show gesture guide
+      const guide = document.getElementById('ar-gesture-guide');
+      guide.classList.remove('hidden', 'fading');
+
+      const sceneMarkup = `
+        <a-scene
+          mindar-image="imageTargetSrc: ./qr-target.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no;"
+          embedded
+          vr-mode-ui="enabled: false"
+          device-orientation-permission-ui="enabled: false"
+          renderer="antialias: true; colorManagement: true; alpha: true; precision: medium;"
+          style="position:absolute;inset:0;width:100%;height:100%;"
+        >
+          <a-assets timeout="10000">
+            <a-asset-item id="ar-glb" src="./artifacts1.glb"></a-asset-item>
+          </a-assets>
+
+          <a-camera
+            position="0 0 0"
+            look-controls="enabled: false"
+            cursor="fuse: false"
+          ></a-camera>
+
+          <a-anchor targetIndex="0" mindar-image-target="targetIndex: 0">
+            <a-entity id="ar-pivot">
+              <a-gltf-model
+                id="ar-model"
+                src="#ar-glb"
+                position="0 0 0"
+                rotation="0 180 0"
+                scale="0.6 0.6 0.6"
+              ></a-gltf-model>
+            </a-entity>
+          </a-anchor>
+        </a-scene>`;
+
+      arRoot.innerHTML = sceneMarkup;
+      const scene = arRoot.querySelector('a-scene');
+      if (!scene) return;
+
+      let watchdogTimer = null;
+
+      const clearWatchdog = () => {
+        if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
+      };
+
+      // Watchdog — if camera doesn't come up in 14s, bail
+      watchdogTimer = setTimeout(() => {
+        if (arStarted) stopAR('Camera did not start. Please check permissions, ensure no other app is using the camera, then try again.');
+      }, 14000);
+
+      // Scene loaded → grab model entity
+      scene.addEventListener('loaded', () => {
+        arModelEntity = scene.querySelector('#ar-model');
+      }, { once: true });
+
+      // MindAR started successfully
+      scene.addEventListener('arReady', clearWatchdog, { once: true });
+
+      // Model finished loading
+      scene.addEventListener('model-loaded', (e) => {
+        arModelEntity = scene.querySelector('#ar-model');
+      });
+
+      // Camera / video stream active
+      const handleVideoActive = () => clearWatchdog();
+
+      // Observe DOM for video element from MindAR
+      const observer = new MutationObserver(() => {
+        const video = arRoot.querySelector('video');
+        if (video && !video.__subListened) {
+          video.__subListened = true;
+          video.addEventListener('playing', handleVideoActive, { once: true });
+          video.addEventListener('loadeddata', handleVideoActive, { once: true });
+          if (!video.paused && video.readyState >= 2) handleVideoActive();
+        }
+      });
+      observer.observe(arRoot, { childList: true, subtree: true });
+
+      // Handle AR camera errors from MindAR
+      scene.addEventListener('arError', (e) => {
+        clearWatchdog();
+        observer.disconnect();
+        const msg = e?.detail?.message || 'AR initialization failed.';
+        stopAR(`AR Error: ${msg}`);
       });
     }
 
-    function connectARGestures() {
+    function stopAR(errorText) {
+      arStarted = false;
       const arRoot = document.getElementById('ar-root');
-      if (!arRoot) return;
-      
-      // Wait for scene to be ready
-      const checkInterval = setInterval(() => {
-        const element = document.querySelector('#ar-root a-scene');
-        if (element) {
-          clearInterval(checkInterval);
-          attachGestureControls(element, {
-            getRot: () => arRotY,
-            setRot: (val) => { arRotY = val; updateARTransform(); },
-            getScale: () => arScale,
-            setScale: (val) => { arScale = val; updateARTransform(); },
-            getHeight: () => arHeight,
-            setHeight: (val) => { arHeight = val; updateARTransform(); }
-          });
+
+      // Cleanly stop any active video tracks before destroying DOM
+      try {
+        const videos = arRoot.querySelectorAll('video');
+        videos.forEach(v => {
+          if (v.srcObject) {
+            v.srcObject.getTracks().forEach(t => t.stop());
+            v.srcObject = null;
+          }
+        });
+        const scene = arRoot.querySelector('a-scene');
+        if (scene?.systems?.['mindar-image-system']) {
+          scene.systems['mindar-image-system'].stop?.();
         }
-      }, 500);
+      } catch (_) {}
+
+      arRoot.innerHTML = '';
+      showView('landing');
+      if (errorText) showError(errorText);
+      else hideError();
     }
 
-    // ============================================================
-    // RESET FUNCTIONS
-    // ============================================================
-    function resetViewer() {
-      viewerRotY = 0;
-      viewerScale = 0.6;
-      viewerHeight = 0;
-      updateViewerTransform();
-    }
-    
-    function resetAR() {
-      arRotY = 0;
-      arScale = 0.6;
-      arHeight = 0;
-      updateARTransform();
-    }
+    // Start AR button
+    document.getElementById('btn-start-ar').addEventListener('click', async () => {
+      if (arStarted) return;
+      hideError();
+      const btn = document.getElementById('btn-start-ar');
+      btn.disabled = true;
+      btn.textContent = 'Starting…';
 
-    // ============================================================
-    // BUTTON EVENT LISTENERS
-    // ============================================================
-    document.getElementById('btn-start-ar').addEventListener('click', startAR);
-    document.getElementById('btn-ar-exit').addEventListener('click', stopAR);
+      try {
+        await preflightCamera();
+      } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>📷</span> Start AR';
+        const msg = e?.message || String(e);
+        if (msg.includes('Permission') || msg.includes('permission') || msg.includes('denied') || msg.includes('NotAllowed')) {
+          showError('Camera permission denied. Please allow camera access in your browser settings, then try again.');
+        } else if (msg.includes('NotFound') || msg.includes('no camera')) {
+          showError('No camera found on this device.');
+        } else if (msg.includes('NotReadable') || msg.includes('in use') || msg.includes('busy')) {
+          showError('Camera is in use by another app. Close other apps and try again.');
+        } else {
+          showError(`Camera error: ${msg}`);
+        }
+        return;
+      }
+
+      // Small delay to ensure camera stream is fully released before MindAR re-opens it
+      await new Promise(r => setTimeout(r, 400));
+
+      arStarted = true;
+      btn.disabled = false;
+      btn.innerHTML = '<span>📷</span> Start AR';
+      showView('ar');
+      injectARScene();
+    });
+
+    // Exit AR
+    document.getElementById('btn-ar-exit').addEventListener('click', () => stopAR(''));
+
+    // Viewer → AR
+    document.getElementById('btn-viewer-ar').addEventListener('click', async () => {
+      document.getElementById('viewer-scene-root').innerHTML = '';
+      viewerScene = null; modelEntity = null;
+      hideError();
+      const btn = document.getElementById('btn-start-ar');
+      btn.disabled = true;
+      try { await preflightCamera(); } catch (_) {}
+      await new Promise(r => setTimeout(r, 400));
+      arStarted = true;
+      btn.disabled = false;
+      showView('ar');
+      injectARScene();
+    });
+
+    /* ── NAVIGATION ── */
     document.getElementById('btn-open-archive').addEventListener('click', () => {
       buildGallery();
       showView('archive');
     });
     document.getElementById('btn-archive-back').addEventListener('click', () => showView('landing'));
     document.getElementById('btn-model-back').addEventListener('click', () => {
+      document.getElementById('viewer-scene-root').innerHTML = '';
+      viewerScene = null; modelEntity = null;
       showView('archive');
     });
-    document.getElementById('btn-viewer-ar').addEventListener('click', () => {
-      startAR();
-    });
-    document.getElementById('ctrl-reset').addEventListener('click', resetViewer);
-    document.getElementById('ar-reset').addEventListener('click', resetAR);
 
-    // MutationObserver to connect AR gestures when scene loads
-    const observer = new MutationObserver(() => {
-      const arScene = document.querySelector('#ar-root a-scene');
-      if (arScene && !arScene._gesturesConnected) {
-        arScene._gesturesConnected = true;
-        attachGestureControls(arScene, {
-          getRot: () => arRotY,
-          setRot: (val) => { arRotY = val; updateARTransform(); },
-          getScale: () => arScale,
-          setScale: (val) => { arScale = val; updateARTransform(); },
-          getHeight: () => arHeight,
-          setHeight: (val) => { arHeight = val; updateARTransform(); }
-        });
-      }
-    });
-    observer.observe(document.getElementById('ar-root'), { childList: true, subtree: true });
-
-    // Connect viewer gestures after scene loads
-    setInterval(() => {
-      if (document.getElementById('viewer-scene-root').children.length > 0 && !window._viewerGesturesConnected) {
-        window._viewerGesturesConnected = true;
-        setTimeout(connectViewerGestures, 500);
-      }
-    }, 500);
-
-    // Initial gallery build
+    /* ── INIT ── */
     buildGallery();
-  })();
+
+  }());
   </script>
 </body>
 </html>
