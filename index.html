@@ -1416,21 +1416,24 @@
 
           marker.addEventListener('markerFound', () => {
             document.getElementById('ar-scan-hint').style.opacity = '0';
-            arModelEntity = scene.querySelector('#ar-model');
             arModelFrozen = false;
             markerEverFound = true;
 
-            // Ensure model is visible and correctly parented under pivot
             const pivot = scene.querySelector('#ar-pivot');
-            const modelEl = scene.querySelector('#ar-model');
-            if (pivot && modelEl && modelEl.parentNode !== pivot) {
+            let modelEl = scene.querySelector('#ar-model');
+            
+            // If model was reparented to scene root, move it back to pivot
+            if (modelEl && modelEl.parentNode !== pivot && pivot) {
               pivot.appendChild(modelEl);
             }
+            
+            modelEl = scene.querySelector('#ar-model');
             if (modelEl) {
               modelEl.setAttribute('visible', 'true');
-              modelEl.setAttribute('position', '0 0.5 0');
-              modelEl.setAttribute('rotation', '-90 0 0');  // Change from '0 0 0'
-              modelEl.setAttribute('scale', '1.2 1.2 1.2');
+              // PRESERVE current arRot, arScale, arY instead of resetting
+              modelEl.setAttribute('position', `0 ${0.5 + arY} 0`);
+              modelEl.setAttribute('rotation', `-90 ${arRot} 0`);
+              modelEl.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
               arModelEntity = modelEl;
             }
           });
@@ -1439,19 +1442,25 @@
             if (!markerEverFound) return;
             arModelFrozen = true;
 
-            // SIMPLE FIX: Set the model to stay visible and keep its transform
+            // Keep model visible and preserve current transform
             try {
               const modelEl = scene.querySelector('#ar-model');
               if (modelEl && modelEl.parentNode !== scene) {
                 // Detach from marker and attach to scene root
                 scene.appendChild(modelEl);
                 
-                // Keep the same position, rotation, scale
-                modelEl.setAttribute('position', '0 0.5 0');
-                modelEl.setAttribute('rotation', '-90 0 0');
-                modelEl.setAttribute('scale', '1.2 1.2 1.2');
+                // IMPORTANT: Use CURRENT rotation, scale, position (not hardcoded values!)
+                modelEl.setAttribute('position', `0 ${0.5 + arY} 0`);
+                modelEl.setAttribute('rotation', `-90 ${arRot} 0`);  // Preserves user's rotation!
+                modelEl.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
                 modelEl.setAttribute('visible', 'true');
                 arModelEntity = modelEl;
+              } else if (modelEl && modelEl.parentNode === scene) {
+                // Already detached, just ensure it's visible with current transforms
+                modelEl.setAttribute('position', `0 ${0.5 + arY} 0`);
+                modelEl.setAttribute('rotation', `-90 ${arRot} 0`);
+                modelEl.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
+                modelEl.setAttribute('visible', 'true');
               }
             } catch (_) {}
           });
