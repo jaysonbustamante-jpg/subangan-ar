@@ -548,9 +548,12 @@
     #ar-gesture-guide.fading { animation: guideFadeOut 0.7s var(--ease-out) forwards; }
     #ar-gesture-guide.hidden { display: none; }
 
-    /* A-Frame built-in UI hiding */
+    /* A-Frame built-in UI — hide everything including the blue loading splash */
     .a-enter-vr, .a-enter-vr-button, .a-enter-ar-button,
-    .a-orientation-modal, .a-dialog-container, .a-modal { display: none !important; }
+    .a-orientation-modal, .a-dialog-container, .a-modal,
+    .a-loader-title, .a-scene-loading, .a-orientation-modal { display: none !important; opacity: 0 !important; pointer-events: none !important; }
+    /* Transparent canvas background so the cyan splash never shows */
+    .a-canvas, a-scene { background: transparent !important; }
 
     ::-webkit-scrollbar { width: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
@@ -945,10 +948,11 @@
 
       const sceneEl = document.createElement('a-scene');
       sceneEl.setAttribute('embedded', '');
+      sceneEl.setAttribute('loading-screen', 'enabled: false');
+      sceneEl.setAttribute('device-orientation-permission-ui', 'enabled: false');
       sceneEl.setAttribute('vr-mode-ui', 'enabled: false');
-      // preserveDrawingBuffer prevents canvas from going blank between frames
       sceneEl.setAttribute('renderer', 'antialias: true; alpha: true; preserveDrawingBuffer: true;');
-      sceneEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+      sceneEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;background:transparent;';
 
       // Camera at z=3, looking at origin (0,0,0) where model sits
       // fov="45" gives natural perspective without distortion
@@ -1346,6 +1350,8 @@
       const sceneMarkup = `
         <a-scene
           embedded
+          loading-screen="enabled: false"
+          device-orientation-permission-ui="enabled: false"
           arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
           vr-mode-ui="enabled: false"
           renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true;"
@@ -1384,6 +1390,12 @@
 
       const wrapper = document.createElement('div');
       wrapper.style.cssText = 'position:absolute;inset:0;z-index:2;pointer-events:none;';
+
+      // Inject style that kills A-Frame loading splash before it paints
+      const noLoadStyle = document.createElement('style');
+      noLoadStyle.textContent = `.a-loader-title,.a-scene-loading{display:none!important;opacity:0!important;} .a-canvas,a-scene{background:transparent!important;}`;
+      document.head.appendChild(noLoadStyle);
+
       wrapper.innerHTML = sceneMarkup;
       arRoot.appendChild(wrapper);
 
