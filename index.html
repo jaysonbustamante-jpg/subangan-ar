@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#1a1209" />
   <title>Subangan ARchive System</title>
 
-  <!-- A-Frame & MindAR -->
+  <!-- A-Frame + AR.js (Hiro marker, rock-solid iOS & Android) -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
 
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -540,7 +540,7 @@
         <div class="hero-eyebrow">✦ Digital Museum Prototype</div>
         <h2 class="hero-title">Bridging the past<br>through <em>augmented reality</em></h2>
         <p class="hero-body">
-          Explore 3D digitized artifacts from Davao Oriental in AR or browse the archive gallery — no camera needed. Point your device at a marker to see history come alive, or discover artifacts at your own pace.
+          Explore 3D digitized artifacts from Davao Oriental in AR or browse the archive gallery — no camera needed. Print the <b style="color:var(--gold2)">Hiro marker</b> (tap View Marker), point your camera at it, and see history come alive.
         </p>
       </div>
 
@@ -554,7 +554,7 @@
             </li>
             <li class="step-row">
               <div class="step-num">2</div>
-              <p>Point camera at the <b>Hiro marker</b> or QR code.</p>
+              <p>Point camera at the <b>Hiro marker</b> — tap <b>View Marker</b> to print it.</p>
             </li>
             <li class="step-row">
               <div class="step-num">3</div>
@@ -567,7 +567,7 @@
           <p class="notes-text">
             Browse digitized artifacts <b>without a camera</b>. Tap <b>Open Archive</b> — then use <b>touch gestures</b> to interact: one finger to rotate, pinch to zoom, two fingers up/down for height.
             <br><br>
-            <b>AR Note:</b> Works best on <b>Chrome</b> (Android) or <b>Safari</b> (iOS). Ensure camera permissions are allowed.
+            <b>AR Note:</b> Tap <b>View Marker</b> to open the <b>Hiro marker</b> — print it and scan with <b>Chrome</b> (Android) or <b>Safari</b> (iOS).
           </p>
         </div>
       </div>
@@ -575,7 +575,7 @@
       <div class="action-row">
         <button id="btn-start-ar" class="btn btn-primary"><span>📷</span> Start AR</button>
         <button id="btn-open-archive" class="btn btn-gold"><span>🏛</span> Open Archive</button>
-        <a href="./qr-code.png" target="_blank" rel="noopener" class="btn btn-ghost"><span>🔲</span> View Marker</a>
+        <a href="https://raw.githack.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank" rel="noopener" download="hiro-marker.png" class="btn btn-ghost"><span>🔲</span> View Marker</a>
       </div>
 
       <div id="error-msg"></div>
@@ -1142,22 +1142,19 @@
     function showError(msg) { errorMsg.style.display = msg ? 'block' : 'none'; errorMsg.textContent = msg || ''; }
     function hideError() { errorMsg.style.display = 'none'; }
 
-    /* ── CAMERA PREFLIGHT (improved) ── */
+    /* ── CAMERA PREFLIGHT ── */
     async function preflightCamera() {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera API not available in this browser.');
       }
-
-      // Try to get the stream directly — this triggers the permission prompt
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+        video: { facingMode: { ideal: 'environment' } },
         audio: false
       });
-      // Stop tracks immediately; MindAR will open camera again
       stream.getTracks().forEach(t => t.stop());
     }
 
-    /* ── AR SCENE INJECTION (improved) ── */
+    /* ── AR SCENE INJECTION (AR.js + Hiro marker) ── */
     function injectARScene() {
       const arRoot = document.getElementById('ar-root');
       arRoot.innerHTML = '';
@@ -1167,107 +1164,85 @@
       const guide = document.getElementById('ar-gesture-guide');
       guide.classList.remove('hidden', 'fading');
 
+      // AR.js works by taking over the full page body when embedded=false,
+      // so we render into a dedicated container with position:fixed
       const sceneMarkup = `
         <a-scene
-          mindar-image="imageTargetSrc: ./qr-target.mind; autoStart: true; uiLoading: no; uiError: no; uiScanning: no;"
           embedded
+          arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
           vr-mode-ui="enabled: false"
-          device-orientation-permission-ui="enabled: false"
-          renderer="antialias: true; colorManagement: true; alpha: true; precision: medium;"
-          style="position:absolute;inset:0;width:100%;height:100%;"
+          renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true;"
+          style="position:absolute;inset:0;width:100%;height:100%;background:transparent;"
         >
-          <a-assets timeout="10000">
+          <a-assets timeout="15000">
             <a-asset-item id="ar-glb" src="./artifacts1.glb"></a-asset-item>
           </a-assets>
 
-          <a-camera
-            position="0 0 0"
-            look-controls="enabled: false"
-            cursor="fuse: false"
-          ></a-camera>
-
-          <a-anchor targetIndex="0" mindar-image-target="targetIndex: 0">
+          <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="2">
             <a-entity id="ar-pivot">
               <a-gltf-model
                 id="ar-model"
                 src="#ar-glb"
-                position="0 0 0"
-                rotation="0 180 0"
+                position="0 0.5 0"
+                rotation="-90 0 0"
                 scale="0.6 0.6 0.6"
               ></a-gltf-model>
             </a-entity>
-          </a-anchor>
+          </a-marker>
+
+          <a-entity camera></a-entity>
         </a-scene>`;
 
       arRoot.innerHTML = sceneMarkup;
       const scene = arRoot.querySelector('a-scene');
       if (!scene) return;
 
-      let watchdogTimer = null;
+      // Watchdog — bail if camera never starts in 15s
+      let watchdogTimer = setTimeout(() => {
+        if (arStarted) stopAR('Camera did not start. Check permissions, close other camera apps, and try again.');
+      }, 15000);
 
-      const clearWatchdog = () => {
-        if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
-      };
+      const clearWatchdog = () => { clearTimeout(watchdogTimer); watchdogTimer = null; };
 
-      // Watchdog — if camera doesn't come up in 14s, bail
-      watchdogTimer = setTimeout(() => {
-        if (arStarted) stopAR('Camera did not start. Please check permissions, ensure no other app is using the camera, then try again.');
-      }, 14000);
-
-      // Scene loaded → grab model entity
       scene.addEventListener('loaded', () => {
+        clearWatchdog();
         arModelEntity = scene.querySelector('#ar-model');
+
+        // Wire marker found/lost to update scan hint
+        const marker = scene.querySelector('#hiro-marker');
+        if (marker) {
+          marker.addEventListener('markerFound', () => {
+            document.getElementById('ar-scan-hint').style.opacity = '0';
+            arModelEntity = scene.querySelector('#ar-model');
+          });
+          marker.addEventListener('markerLost', () => {
+            document.getElementById('ar-scan-hint').style.opacity = '1';
+          });
+        }
       }, { once: true });
 
-      // MindAR started successfully
-      scene.addEventListener('arReady', clearWatchdog, { once: true });
-
-      // Model finished loading
-      scene.addEventListener('model-loaded', (e) => {
-        arModelEntity = scene.querySelector('#ar-model');
-      });
-
-      // Camera / video stream active
-      const handleVideoActive = () => clearWatchdog();
-
-      // Observe DOM for video element from MindAR
-      const observer = new MutationObserver(() => {
+      // Detect camera video starting (clears watchdog early)
+      const obs = new MutationObserver(() => {
         const video = arRoot.querySelector('video');
-        if (video && !video.__subListened) {
-          video.__subListened = true;
-          video.addEventListener('playing', handleVideoActive, { once: true });
-          video.addEventListener('loadeddata', handleVideoActive, { once: true });
-          if (!video.paused && video.readyState >= 2) handleVideoActive();
+        if (video && !video.__arjsSub) {
+          video.__arjsSub = true;
+          const onActive = () => clearWatchdog();
+          video.addEventListener('playing', onActive, { once: true });
+          if (video.readyState >= 3 && !video.paused) onActive();
         }
       });
-      observer.observe(arRoot, { childList: true, subtree: true });
-
-      // Handle AR camera errors from MindAR
-      scene.addEventListener('arError', (e) => {
-        clearWatchdog();
-        observer.disconnect();
-        const msg = e?.detail?.message || 'AR initialization failed.';
-        stopAR(`AR Error: ${msg}`);
-      });
+      obs.observe(arRoot, { childList: true, subtree: true });
     }
 
     function stopAR(errorText) {
       arStarted = false;
       const arRoot = document.getElementById('ar-root');
 
-      // Cleanly stop any active video tracks before destroying DOM
+      // Stop any active camera tracks before wiping DOM
       try {
-        const videos = arRoot.querySelectorAll('video');
-        videos.forEach(v => {
-          if (v.srcObject) {
-            v.srcObject.getTracks().forEach(t => t.stop());
-            v.srcObject = null;
-          }
+        arRoot.querySelectorAll('video').forEach(v => {
+          if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
         });
-        const scene = arRoot.querySelector('a-scene');
-        if (scene?.systems?.['mindar-image-system']) {
-          scene.systems['mindar-image-system'].stop?.();
-        }
       } catch (_) {}
 
       arRoot.innerHTML = '';
