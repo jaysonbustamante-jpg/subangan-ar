@@ -661,7 +661,6 @@
           <div class="viewer-artifact-origin" id="viewer-origin">Davao Oriental</div>
         </div>
       </div>
-      <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px;" id="btn-viewer-ar">📷 View in AR</button>
     </div>
 
     <div class="viewer-body">
@@ -1193,50 +1192,55 @@
     let arRot = 0, arScale = 1.2, arY = 0;
     let arModelEntity = null;
 
-    const AR_BASE_ROT_X = -90; // keeps glTF model upright on marker plane
+    const AR_BASE_ROT_X = -90; // keeps glTF model upright on the marker plane
     const DEG2RAD = Math.PI / 180;
 
-    // ── Shared gesture state exposed so the A-Frame tick component can read it ──
-    // AR.js overwrites the marker entity's world matrix every frame while the
-    // marker is visible.  Any direct Three.js writes to pivot.object3D inside
-    // applyARTransform() get silently clobbered on the very next frame.
+    // ─────────────────────────────────────────────────────────────────────────
+    // WHY THE MODEL CLOCK-SPINS (and why a tick component fixes it)
+    // ─────────────────────────────────────────────────────────────────────────
+    // The model has rotation="-90 0 0" so it stands upright instead of lying
+    // flat on the marker.  That -90° X-tilt remaps the model's local Y-axis
+    // onto world-Z.  When we then set Y-rotation on the SAME element, Three.js
+    // applies it in already-tilted local space — the model spins like a clock
+    // instead of turntable-rotating.
     //
-    // Fix: register a lightweight A-Frame component on ar-pivot that fires
-    // AFTER AR.js has finished updating the marker hierarchy each tick, then
-    // re-applies our gesture values.  applyARTransform() now only updates the
-    // JS variables; the tick loop is the single source of truth for Three.js.
+    // The two-layer fix:
+    //   ar-pivot  (parent)  → carries Y-spin only (world-up turntable)
+    //   ar-model  (child)   → carries X-tilt only (-90°) + scale
+    // Because the tilt is applied AFTER the pivot has spun, dragging left/right
+    // always rotates around the true world-up axis regardless of X-tilt.
+    //
+    // SECOND PROBLEM: AR.js overwrites the marker hierarchy's Three.js matrix
+    // every frame while tracking.  Any direct object3D write in applyARTransform
+    // gets silently clobbered ~16 ms later before the next paint.
+    //
+    // Fix: register an A-Frame tick component on ar-pivot that re-applies our
+    // gesture values INSIDE the A-Frame render loop, after AR.js has finished
+    // its own update.  applyARTransform() now only sets the shared _arState
+    // object; the tick component is the single writer to Three.js.
+    // ─────────────────────────────────────────────────────────────────────────
+
     const _arState = { rot: 0, scale: 1.2, y: 0, frozen: false, active: false };
 
-    // Register the component once (guard against double-registration on re-launch)
     if (!AFRAME.components['ar-gesture-sync']) {
       AFRAME.registerComponent('ar-gesture-sync', {
-        // modelEl: the child <a-gltf-model> inside this pivot
-        init() {
-          this._modelEl = null;
-        },
+        init() { this._modelEl = null; },
         tick() {
           if (!_arState.active) return;
 
-          // Lazily resolve the child model element
-          if (!this._modelEl) {
-            this._modelEl = this.el.querySelector('#ar-model');
-          }
+          if (!this._modelEl) this._modelEl = this.el.querySelector('#ar-model');
           const modelEl = this._modelEl;
           if (!modelEl || !modelEl.object3D) return;
 
-          // ── Pivot: Y spin + optional height lift (marker-local coordinates) ──
-          // AR.js sets the pivot's world position from the marker; we write
-          // rotation and the local-Y offset on top of that every tick.
+          // Pivot: Y-axis turntable spin + optional height lift
           const pivot = this.el.object3D;
           pivot.rotation.set(0, _arState.rot * DEG2RAD, 0);
-          // Height: only apply the user's Y offset while marker is live; when
-          // frozen we keep the last good position (AR.js no longer moves it).
           if (!_arState.frozen) {
             pivot.position.set(0, 0.5 + _arState.y, 0);
           }
 
-          // ── Child model: fixed X tilt (-90°) so it stands upright, Y stays 0 ──
-          // Scale is applied here (not on the pivot) so zoom never affects rotation.
+          // Child model: fixed -90° X tilt so it stands upright; scale for zoom
+          // Y rotation stays 0 here — all spinning happens on the parent pivot
           const obj = modelEl.object3D;
           obj.rotation.set(AR_BASE_ROT_X * DEG2RAD, 0, 0);
           obj.scale.set(_arState.scale, _arState.scale, _arState.scale);
@@ -1246,8 +1250,8 @@
     }
 
     function applyARTransform() {
-      // Update the shared state; the registered tick component will pick it up
-      // on the next A-Frame render loop — no direct Three.js writes needed here.
+      // Only update the shared state object.
+      // The tick component reads it every frame — no direct Three.js writes here.
       _arState.rot    = arRot;
       _arState.scale  = arScale;
       _arState.y      = arY;
@@ -1379,9 +1383,9 @@
 
       // Reset all AR state
       arRot = 0; arScale = 1.2; arY = 0;
-      arModelEntity  = null;
-      arModelFrozen  = false;
-      _arState.rot   = 0; _arState.scale = 1.2; _arState.y = 0;
+      arModelEntity   = null;
+      arModelFrozen   = false;
+      _arState.rot    = 0; _arState.scale = 1.2; _arState.y = 0;
       _arState.frozen = false; _arState.active = false;
 
       // ── Start canvas camera loop ──
@@ -1393,10 +1397,9 @@
       }
 
       // ── Inject A-Frame AR scene ──
-      // ar-pivot carries Y-spin + height via the ar-gesture-sync tick component.
-      // ar-model carries only the fixed -90° X tilt + scale — set each tick.
-      // Initial HTML attributes are only starting values; the tick component
-      // overwrites them every frame so AR.js can never clobber our gesture state.
+      // ar-pivot (with ar-gesture-sync) → carries Y-spin + height every tick
+      // ar-model (child)                → carries -90° X tilt + scale every tick
+      // AR.js can only touch the marker entity; our component owns pivot & model.
       const sceneMarkup = `
         <a-scene
           embedded
@@ -1420,8 +1423,8 @@
             smoothThreshold="2"
             emitevents="true"
           >
-            <!-- ar-gesture-sync component re-applies gesture state every tick  -->
-            <!-- so AR.js marker tracking can never override our rotation/scale. -->
+            <!-- ar-gesture-sync tick component re-applies gesture state every   -->
+            <!-- frame so AR.js marker tracking cannot override our transforms.  -->
             <a-entity id="ar-pivot" ar-gesture-sync>
               <a-gltf-model
                 id="ar-model"
@@ -1439,7 +1442,6 @@
       const wrapper = document.createElement('div');
       wrapper.style.cssText = 'position:absolute;inset:0;z-index:2;pointer-events:none;';
 
-      // Inject style that kills A-Frame loading splash before it paints
       const noLoadStyle = document.createElement('style');
       noLoadStyle.textContent = `.a-loader-title,.a-scene-loading{display:none!important;opacity:0!important;} .a-canvas,a-scene{background:transparent!important;}`;
       document.head.appendChild(noLoadStyle);
@@ -1453,26 +1455,21 @@
       scene.addEventListener('loaded', () => {
         arModelEntity = scene.querySelector('#ar-model');
 
-        // Make the A-Frame WebGL canvas transparent so camera canvas shows through
+        // Make the A-Frame WebGL canvas transparent so the camera canvas shows through
         const aCanvas = scene.canvas;
         if (aCanvas) {
           aCanvas.style.cssText = 'position:absolute!important;inset:0!important;width:100%!important;height:100%!important;background:transparent!important;';
           try {
             const gl = aCanvas.getContext('webgl') || aCanvas.getContext('webgl2');
-            if (gl) { gl.clearColor(0, 0, 0, 0); }
+            if (gl) gl.clearColor(0, 0, 0, 0);
           } catch (_) {}
         }
 
         const marker = scene.querySelector('#hiro-marker');
         if (marker) {
-          // ── Persistence strategy ──
-          // AR.js hides marker children by setting object3D.visible = false when
-          // the marker is lost. We override that with a per-frame RAF loop that
-          // forces marker.object3D.visible = true after the marker is first found.
-          // The ar-gesture-sync tick component handles all transform writes, so
-          // the frozen pivot keeps the last seen world position and our gesture
-          // values continue to apply correctly even with no marker in view.
-
+          // Persistence: AR.js sets marker.object3D.visible = false when the
+          // marker is lost, hiding the model. We override this with a per-frame
+          // RAF that forces it back to true after first detection.
           let markerEverFound = false;
           let keepVisibleRaf  = null;
 
@@ -1485,16 +1482,15 @@
             document.getElementById('ar-scan-hint').style.opacity = '0';
 
             if (!markerEverFound) {
-              // First detection: activate the tick component and start gestures
               markerEverFound = true;
-              _arState.active = true;
-              applyARTransform(); // push current state into _arState
+              _arState.active = true; // activate the tick component
+              applyARTransform();
             }
 
-            arModelFrozen     = false;
-            _arState.frozen   = false;
+            arModelFrozen   = false;
+            _arState.frozen = false;
 
-            // Marker is live — AR.js manages visibility, stop our override loop
+            // Marker is live — let AR.js manage visibility normally
             if (keepVisibleRaf) { cancelAnimationFrame(keepVisibleRaf); keepVisibleRaf = null; }
 
             arModelEntity = scene.querySelector('#ar-model');
@@ -1506,7 +1502,6 @@
             arModelFrozen   = true;
             _arState.frozen = true;
 
-            // Keep the pivot visible after AR.js tries to hide it
             if (marker.object3D) marker.object3D.visible = true;
             if (!keepVisibleRaf) forceMarkerVisible();
           });
@@ -1519,9 +1514,9 @@
     }
 
     function stopAR(errorText) {
-      arStarted        = false;
-      arModelFrozen    = false;
-      _arState.active  = false;  // halt the tick component between sessions
+      arStarted       = false;
+      arModelFrozen   = false;
+      _arState.active = false; // halt the tick component between sessions
 
       // 1. Stop our canvas rAF loop and hidden video
       stopCameraCanvasLoop();
@@ -1614,16 +1609,6 @@
     document.getElementById('btn-start-ar').addEventListener('click', launchAR);
     document.getElementById('btn-ar-exit').addEventListener('click', () => stopAR(''));
 
-    // "View in AR" from the 3D model viewer
-    document.getElementById('btn-viewer-ar').addEventListener('click', async () => {
-      // Clean up viewer first
-      document.getElementById('viewer-scene-root').innerHTML = '';
-      viewerScene = null; modelEntity = null;
-      hideError();
-      // Allow re-launch even if arStarted was somehow true
-      arStarted = false;
-      await launchAR();
-    });
 
     /* ── NAVIGATION ── */
     document.getElementById('btn-open-archive').addEventListener('click', () => {
