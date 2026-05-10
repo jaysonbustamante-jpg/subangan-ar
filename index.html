@@ -1198,21 +1198,29 @@
 
     function applyARTransform() {
       if (!arModelEntity || !arModelEntity.object3D) return;
-      const obj = arModelEntity.object3D;
 
-      // Always drive via Three.js directly — setAttribute('rotation') loses
-      // to AR.js/Three.js ownership fights and causes the "can't rotate" bug.
-      obj.rotation.order = 'YXZ'; // spin Y first, then tilt X, natural for turntable
-      obj.rotation.x = AR_BASE_ROT_X * DEG2RAD; // locked — keeps pot upright
-      obj.rotation.y = arRot         * DEG2RAD; // user drag spins this
-      obj.rotation.z = 0;
+      // ── Two-layer rotation: true turntable with no gimbal lock ──
+      //   ar-pivot (parent) carries the Y spin ONLY.
+      //   ar-model (child)  carries the X tilt ONLY (-90 deg to stand upright).
+      // Because the tilt is applied in the child's local space AFTER the parent
+      // has already spun, dragging Y on the pivot always rotates around the
+      // world-up axis — exactly like a museum turntable.
+      // If Y were set on the already-tilted model, a -90 X tilt remaps the Y
+      // axis onto Z, so the model clock-spins instead of turntable-spins.
 
-      obj.scale.set(arScale, arScale, arScale);
+      // Get pivot via sceneEl query (arModelEntity is ar-model, its parent is ar-pivot)
+      const pivotEl = arModelEntity.parentEl || arModelEntity.parentNode;
 
-      // Position: only update when tracking (frozen pos is held by marker hierarchy)
-      if (!arModelFrozen) {
-        obj.position.set(0, 0.5 + arY, 0);
+      if (pivotEl && pivotEl.object3D) {
+        pivotEl.object3D.rotation.set(0, arRot * DEG2RAD, 0);
+        pivotEl.object3D.position.set(0, arModelFrozen ? 0 : (0.5 + arY), 0);
       }
+
+      // Child model: X tilt only + scale (position stays at local origin)
+      const obj = arModelEntity.object3D;
+      obj.rotation.set(AR_BASE_ROT_X * DEG2RAD, 0, 0);
+      obj.scale.set(arScale, arScale, arScale);
+      obj.position.set(0, 0, 0);
     }
 
     // Attach gestures to AR layer
