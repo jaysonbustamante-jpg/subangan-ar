@@ -535,12 +535,17 @@
     }
     .ar-reset-fab:active { transform: scale(0.9); background: rgba(201,145,61,0.2); }
 
-    /* AR auto-rotate spin button */
-    .ar-spin-fab {
+    /* AR left / right rotate buttons */
+    .ar-rotate-btns {
       position: fixed;
       bottom: 82px;
-      right: 20px;
+      right: 12px;
       z-index: 9997;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .ar-rot-btn {
       appearance: none;
       border: 1px solid var(--stroke);
       background: rgba(26, 18, 9, 0.85);
@@ -548,31 +553,25 @@
       width: 48px; height: 48px;
       border-radius: 14px;
       cursor: pointer;
-      font-size: 18px;
+      font-size: 22px;
+      font-weight: 300;
       display: grid;
       place-items: center;
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-      transition: background 0.15s, transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+      transition: background 0.12s, border-color 0.12s, transform 0.1s, box-shadow 0.12s;
       touch-action: manipulation;
       user-select: none;
       -webkit-user-select: none;
+      line-height: 1;
     }
-    .ar-spin-fab:active { transform: scale(0.93); }
-    .ar-spin-fab.spinning {
+    .ar-rot-btn:active,
+    .ar-rot-btn.held {
       background: rgba(201, 145, 61, 0.22);
       border-color: var(--gold);
       box-shadow: 0 4px 20px rgba(201, 145, 61, 0.35);
-      color: var(--gold2);
-    }
-    /* Spin the icon when active */
-    .ar-spin-fab.spinning .spin-icon {
-      animation: spinIcon 1.2s linear infinite;
-    }
-    @keyframes spinIcon {
-      from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
+      transform: scale(0.93);
     }
 
     /* AR gesture guide overlay */
@@ -828,10 +827,11 @@
       <div class="ar-scan-hint" id="ar-scan-hint">Point camera at marker to reveal artifact</div>
     </div>
 
-    <!-- AR Auto-Rotate Button: tap to toggle, hold to spin -->
-    <button class="ar-spin-fab" id="ar-spin-fab" title="Auto-rotate model">
-      <span class="spin-icon">⟳</span>
-    </button>
+    <!-- AR Rotate Left / Right buttons: hold to spin continuously -->
+    <div class="ar-rotate-btns">
+      <button class="ar-rot-btn" id="ar-rot-left"  title="Rotate left">‹</button>
+      <button class="ar-rot-btn" id="ar-rot-right" title="Rotate right">›</button>
+    </div>
 
     <!-- AR Reset FAB -->
     <button class="ar-reset-fab" id="ar-reset-fab" title="Reset model">↺</button>
@@ -1345,88 +1345,49 @@
       applyARTransform();
     });
 
-    /* ── AR Auto-Rotate (spin) button ── */
-    // Tap  → toggle continuous auto-rotation on/off
-    // Hold → spin only while finger is held down (releases on touchend/mouseup)
-    let arAutoRotating  = false;  // toggled by tap
-    let arSpinRafId     = null;
-    let arHoldActive    = false;  // true only during a held press
-    let arLongPressTimer = null;
-    const AR_SPIN_SPEED = 0.6;    // degrees per frame at 60 fps
+    /* ── AR Left / Right rotate buttons (hold to spin) ── */
+    // Holding ‹ rotates left (Y decreases), holding › rotates right (Y increases).
+    // Works for both touch and mouse. Releasing always stops the spin immediately.
+    const AR_ROT_SPEED = 1.2; // degrees per frame at ~60 fps
 
-    function startAutoRotate() {
-      if (arSpinRafId) return;
-      arAutoRotating = true;
-      const spinFab = document.getElementById('ar-spin-fab');
-      spinFab.classList.add('spinning');
+    function makeRotateButton(btnId, direction) {
+      const btn = document.getElementById(btnId);
+      let rafId = null;
 
-      function spinFrame() {
-        arRot += AR_SPIN_SPEED;
-        applyARTransform();
-        arSpinRafId = requestAnimationFrame(spinFrame);
+      function startSpin() {
+        if (rafId) return;
+        btn.classList.add('held');
+        function frame() {
+          arRot += AR_ROT_SPEED * direction;
+          applyARTransform();
+          rafId = requestAnimationFrame(frame);
+        }
+        rafId = requestAnimationFrame(frame);
       }
-      arSpinRafId = requestAnimationFrame(spinFrame);
+
+      function stopSpin() {
+        if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+        btn.classList.remove('held');
+      }
+
+      // Touch
+      btn.addEventListener('touchstart',  (e) => { e.preventDefault(); startSpin(); }, { passive: false });
+      btn.addEventListener('touchend',    (e) => { e.preventDefault(); stopSpin();  }, { passive: false });
+      btn.addEventListener('touchcancel', (e) => { e.preventDefault(); stopSpin();  }, { passive: false });
+
+      // Mouse (desktop / devtools)
+      btn.addEventListener('mousedown',  startSpin);
+      btn.addEventListener('mouseup',    stopSpin);
+      btn.addEventListener('mouseleave', stopSpin);
+
+      return { stop: stopSpin };
     }
 
-    function stopAutoRotate() {
-      arAutoRotating = false;
-      if (arSpinRafId) { cancelAnimationFrame(arSpinRafId); arSpinRafId = null; }
-      const spinFab = document.getElementById('ar-spin-fab');
-      if (spinFab) spinFab.classList.remove('spinning');
-    }
+    const _rotLeft  = makeRotateButton('ar-rot-left',  -1); // ‹ → decrease Y → rotates left
+    const _rotRight = makeRotateButton('ar-rot-right', +1); // › → increase Y → rotates right
 
-    const arSpinFab = document.getElementById('ar-spin-fab');
-
-    // Touch: distinguish tap vs hold
-    arSpinFab.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      arHoldActive = false;
-
-      // Start a long-press timer — if held >200 ms, treat as hold-to-spin
-      arLongPressTimer = setTimeout(() => {
-        arHoldActive = true;
-        // If not already toggled on, start spinning for the hold duration
-        if (!arAutoRotating) startAutoRotate();
-      }, 200);
-    }, { passive: false });
-
-    arSpinFab.addEventListener('touchend', (e) => {
-      e.preventDefault();
-      clearTimeout(arLongPressTimer);
-
-      if (arHoldActive) {
-        // Hold released → stop if it was only a hold (not a toggle)
-        if (!arAutoRotating || arHoldActive) stopAutoRotate();
-        arHoldActive = false;
-      } else {
-        // Short tap → toggle
-        if (arAutoRotating) stopAutoRotate();
-        else startAutoRotate();
-      }
-    }, { passive: false });
-
-    // Mouse fallback (desktop / devtools)
-    arSpinFab.addEventListener('mousedown', () => {
-      arHoldActive = false;
-      arLongPressTimer = setTimeout(() => {
-        arHoldActive = true;
-        if (!arAutoRotating) startAutoRotate();
-      }, 200);
-    });
-    arSpinFab.addEventListener('mouseup', () => {
-      clearTimeout(arLongPressTimer);
-      if (arHoldActive) {
-        stopAutoRotate();
-        arHoldActive = false;
-      } else {
-        if (arAutoRotating) stopAutoRotate();
-        else startAutoRotate();
-      }
-    });
-    arSpinFab.addEventListener('mouseleave', () => {
-      clearTimeout(arLongPressTimer);
-      if (arHoldActive) { stopAutoRotate(); arHoldActive = false; }
-    });
+    // Stop both buttons when AR exits
+    function stopRotateButtons() { _rotLeft.stop(); _rotRight.stop(); }
 
     const errorMsg = document.getElementById('error-msg');
     function showError(msg) { errorMsg.style.display = msg ? 'block' : 'none'; errorMsg.textContent = msg || ''; }
@@ -1662,7 +1623,7 @@
       arStarted       = false;
       arModelFrozen   = false;
       _arState.active = false; // halt the tick component between sessions
-      stopAutoRotate();        // stop any ongoing auto-rotation
+      stopRotateButtons();     // stop any ongoing button-held rotation
 
       // 1. Stop our canvas rAF loop and hidden video
       stopCameraCanvasLoop();
