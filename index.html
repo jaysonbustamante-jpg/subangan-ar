@@ -1193,15 +1193,26 @@
     let arRot = 0, arScale = 1.2, arY = 0;
     let arModelEntity = null;
 
+    // AR_BASE_ROT_X must match the rotation set on the model in the scene markup.
+    // -90 stands the glTF upright on the marker plane.
+    const AR_BASE_ROT_X = -90;
+
     function applyARTransform() {
       if (!arModelEntity) return;
+      // X is always AR_BASE_ROT_X — NEVER changes. arRot only affects Y (spin).
+      // Zoom (arScale) and height (arY) are fully independent of rotation.
+      const rotStr   = `${AR_BASE_ROT_X} ${arRot} 0`;
+      const scaleStr = `${arScale} ${arScale} ${arScale}`;
+
       if (arModelFrozen) {
-        arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
-        arModelEntity.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
-        arModelEntity.setAttribute('position', `0 ${arY} 0`);
+        // Frozen: model is at scene root — only rotation/scale update,
+        // position is held by the Three.js world-space snapshot.
+        arModelEntity.setAttribute('rotation', rotStr);
+        arModelEntity.setAttribute('scale',    scaleStr);
       } else {
-        arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
-        arModelEntity.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
+        // Tracking: model is inside the marker, positioned relative to it.
+        arModelEntity.setAttribute('rotation', rotStr);
+        arModelEntity.setAttribute('scale',    scaleStr);
         arModelEntity.setAttribute('position', `0 ${0.5 + arY} 0`);
       }
     }
@@ -1365,10 +1376,9 @@
             smoothThreshold="2"
             emitevents="true"
           >
-            <!-- Model sits on the marker surface at origin.                  -->
-            <!-- rotation="0 0 0" — glTF is Y-up which matches AR.js marker  -->
-            <!-- plane, so no axis correction needed. Y offset lifts the pot  -->
-            <!-- slightly above the marker surface.                           -->
+            <!-- rotation="-90 0 0" stands the glTF model upright on the marker  -->
+            <!-- plane. Y-offset lifts the base slightly above the marker surface. -->
+            <!-- AR_BASE_ROT_X in JS must always match this X value (-90).        -->
             <a-entity id="ar-pivot">
               <a-gltf-model
                 id="ar-model"
@@ -1416,53 +1426,67 @@
 
           marker.addEventListener('markerFound', () => {
             document.getElementById('ar-scan-hint').style.opacity = '0';
-            arModelFrozen = false;
             markerEverFound = true;
 
+            // Restore model to pivot if it was reparented to scene root during markerLost
             const pivot = scene.querySelector('#ar-pivot');
             let modelEl = scene.querySelector('#ar-model');
-            
-            // If model was reparented to scene root, move it back to pivot
-            if (modelEl && modelEl.parentNode !== pivot && pivot) {
+            if (pivot && modelEl && modelEl.parentNode !== pivot) {
               pivot.appendChild(modelEl);
             }
-            
+
             modelEl = scene.querySelector('#ar-model');
             if (modelEl) {
-              modelEl.setAttribute('visible', 'true');
-              // PRESERVE current arRot, arScale, arY instead of resetting
+              // Restore to upright pose, preserving all user-adjusted values
+              modelEl.setAttribute('visible',  'true');
               modelEl.setAttribute('position', `0 ${0.5 + arY} 0`);
-              modelEl.setAttribute('rotation', `-90 ${arRot} 0`);
-              modelEl.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
+              modelEl.setAttribute('rotation', `${AR_BASE_ROT_X} ${arRot} 0`);
+              modelEl.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
               arModelEntity = modelEl;
             }
+
+            arModelFrozen = false;
           });
 
           marker.addEventListener('markerLost', () => {
-            if (!markerEverFound) return;
-            arModelFrozen = true;
+            if (!markerEverFound || arModelFrozen) return;
 
-            // Keep model visible and preserve current transform
+            const modelEl = scene.querySelector('#ar-model');
+            if (!modelEl || !modelEl.object3D) return;
+
             try {
-              const modelEl = scene.querySelector('#ar-model');
-              if (modelEl && modelEl.parentNode !== scene) {
-                // Detach from marker and attach to scene root
-                scene.appendChild(modelEl);
-                
-                // IMPORTANT: Use CURRENT rotation, scale, position (not hardcoded values!)
-                modelEl.setAttribute('position', `0 ${0.5 + arY} 0`);
-                modelEl.setAttribute('rotation', `-90 ${arRot} 0`);  // Preserves user's rotation!
-                modelEl.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
-                modelEl.setAttribute('visible', 'true');
-                arModelEntity = modelEl;
-              } else if (modelEl && modelEl.parentNode === scene) {
-                // Already detached, just ensure it's visible with current transforms
-                modelEl.setAttribute('position', `0 ${0.5 + arY} 0`);
-                modelEl.setAttribute('rotation', `-90 ${arRot} 0`);
-                modelEl.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
-                modelEl.setAttribute('visible', 'true');
-              }
-            } catch (_) {}
+              // ── KEY FIX ──
+              // Capture the model's WORLD-SPACE transform BEFORE reparenting.
+              // The old code set position="0 0.5 0" after moving to scene root,
+              // which placed the model at the scene origin (off-screen / behind
+              // the camera). World-space coords keep it exactly where it was.
+              modelEl.object3D.updateWorldMatrix(true, true);
+              const wPos  = new THREE.Vector3();
+              const wQuat = new THREE.Quaternion();
+              const wScale = new THREE.Vector3();
+              modelEl.object3D.matrixWorld.decompose(wPos, wQuat, wScale);
+
+              // Move model out of the marker so AR.js stop hiding it on loss
+              scene.appendChild(modelEl);
+
+              // Write the captured world transform directly to Three.js —
+              // this is immediate and doesn't go through A-Frame's parser.
+              modelEl.object3D.position.copy(wPos);
+              modelEl.object3D.quaternion.copy(wQuat);
+              modelEl.object3D.scale.copy(wScale);
+              modelEl.object3D.matrixWorldNeedsUpdate = true;
+
+              // Sync A-Frame attributes so applyARTransform() stays consistent
+              modelEl.setAttribute('visible',  'true');
+              modelEl.setAttribute('rotation', `${AR_BASE_ROT_X} ${arRot} 0`);
+              modelEl.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
+              // Do NOT setAttribute('position') — Three.js owns the position now
+
+              arModelEntity = modelEl;
+              arModelFrozen = true;
+            } catch (_) {
+              try { modelEl.setAttribute('visible', 'true'); } catch (__) {}
+            }
           });
         }
       }, { once: true });
