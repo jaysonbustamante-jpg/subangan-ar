@@ -1294,15 +1294,18 @@
           const modelEl = this._modelEl;
           if (!modelEl || !modelEl.object3D) return;
 
-          // Pivot: Y-axis turntable spin + optional height lift
+          // Pivot: Z-axis halo spin (rotates like a coin/halo lying flat) + height lift
+          // The marker plane is XZ; the model is tilted -90° on X to stand upright.
+          // Spinning the pivot on Z rotates the upright model around its own
+          // vertical axis as seen from above — exactly like a halo or spinning coin.
           const pivot = this.el.object3D;
-          pivot.rotation.set(0, _arState.rot * DEG2RAD, 0);
+          pivot.rotation.set(0, 0, _arState.rot * DEG2RAD);
           if (!_arState.frozen) {
             pivot.position.set(0, 0.5 + _arState.y, 0);
           }
 
           // Child model: fixed -90° X tilt so it stands upright; scale for zoom
-          // Y rotation stays 0 here — all spinning happens on the parent pivot
+          // No rotation here — all spinning happens on the parent pivot's Z axis
           const obj = modelEl.object3D;
           obj.rotation.set(AR_BASE_ROT_X * DEG2RAD, 0, 0);
           obj.scale.set(_arState.scale, _arState.scale, _arState.scale);
@@ -1383,8 +1386,8 @@
       return { stop: stopSpin };
     }
 
-    const _rotLeft  = makeRotateButton('ar-rot-left',  -1); // ‹ → decrease Y → rotates left
-    const _rotRight = makeRotateButton('ar-rot-right', +1); // › → increase Y → rotates right
+    const _rotLeft  = makeRotateButton('ar-rot-left',  -1); // ‹ → decrease Z → halo-spins left
+    const _rotRight = makeRotateButton('ar-rot-right', +1); // › → increase Z → halo-spins right
 
     // Stop both buttons when AR exits
     function stopRotateButtons() { _rotLeft.stop(); _rotRight.stop(); }
