@@ -1197,17 +1197,15 @@
     function applyARTransform() {
       if (!arModelEntity) return;
       if (arModelFrozen) {
-        // When frozen, model is parented to ar-frozen at world coords.
-        // Apply rotation + scale only — position offset via y moves it
-        // within the frozen entity's local space.
+        // When frozen, model is in world space — apply relative offsets only
         arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
         arModelEntity.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
         arModelEntity.setAttribute('position', `0 ${arY} 0`);
       } else {
-        // Normal: model is parented to marker, apply relative to marker
-        arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
+        // Normal: model is parented to marker pivot
+        arModelEntity.setAttribute('rotation', `0 ${180 + arRot} 0`);
         arModelEntity.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
-        arModelEntity.setAttribute('position', `0 ${1.5 + arY} 0`);
+        arModelEntity.setAttribute('position', `0 ${0.5 + arY} 0`);
       }
     }
 
@@ -1335,12 +1333,6 @@
       arRoot.innerHTML = '';
       arRot = 0; arScale = 1.2; arY = 0; arModelEntity = null; arModelFrozen = false;
 
-      // ── Loading overlay ──
-      const loadingEl = document.createElement('div');
-      loadingEl.id = 'ar-loading-overlay';
-      loadingEl.innerHTML = `<div class="ar-spinner"></div><p>Starting camera…</p>`;
-      arRoot.appendChild(loadingEl);
-
       // ── Start canvas camera loop ──
       try {
         await startCameraCanvasLoop(arCameraStream);
@@ -1348,10 +1340,6 @@
         stopAR('Camera failed to start. Please try again in Safari or Chrome.');
         return;
       }
-
-      // Camera is live — hide loading overlay
-      loadingEl.classList.add('hidden');
-      setTimeout(() => { if (loadingEl.parentNode) loadingEl.remove(); }, 500);
 
       // ── Inject A-Frame AR scene ──
       // Model positioned at eye-level (y=1.5) so it appears centred
@@ -1378,15 +1366,16 @@
             smoothThreshold="2"
             emitevents="true"
           >
-            <!-- position="0 1.5 0" lifts model to eye level above marker     -->
-            <!-- rotation="0 0 0" keeps it upright, facing the camera         -->
-            <!-- scale="1.2 1.2 1.2" — visible size centred on screen        -->
+            <!-- Model sits on the marker surface at origin.                  -->
+            <!-- rotation="-90 0 0" corrects glTF orientation so the model   -->
+            <!-- stands upright relative to the marker plane.                 -->
+            <!-- scale and position are managed via applyARTransform()        -->
             <a-entity id="ar-pivot">
               <a-gltf-model
                 id="ar-model"
                 src="#ar-glb"
-                position="0 1.5 0"
-                rotation="0 0 0"
+                position="0 0.5 0"
+                rotation="0 180 0"
                 scale="1.2 1.2 1.2"
               ></a-gltf-model>
             </a-entity>
@@ -1422,38 +1411,57 @@
             document.getElementById('ar-scan-hint').style.opacity = '0';
             arModelEntity = scene.querySelector('#ar-model');
             arModelFrozen = false;
+
+            // If we have a frozen copy from a previous loss, remove it
+            const old = scene.querySelector('#ar-frozen');
+            if (old) old.remove();
+
+            // Re-parent the original model back under the marker pivot
+            const pivot = scene.querySelector('#ar-pivot');
+            const modelEl = scene.querySelector('#ar-model');
+            if (pivot && modelEl && modelEl.parentNode !== pivot) {
+              pivot.appendChild(modelEl);
+              modelEl.setAttribute('position', '0 0.5 0');
+              modelEl.setAttribute('rotation', '0 180 0');
+              modelEl.setAttribute('scale', '1.2 1.2 1.2');
+              arModelEntity = modelEl;
+            }
           });
 
           marker.addEventListener('markerLost', () => {
             if (arModelFrozen || !arModelEntity) return;
             arModelFrozen = true;
 
-            // Freeze model in world space so it stays visible after marker is gone
+            // Snapshot world transform of the model and place a frozen entity at that position
             try {
-              const pivot = scene.querySelector('#ar-pivot');
-              if (pivot && pivot.object3D) {
-                pivot.object3D.updateWorldMatrix(true, true);
-                const wp = new THREE.Vector3();
-                const wq = new THREE.Quaternion();
-                const ws = new THREE.Vector3();
-                pivot.object3D.matrixWorld.decompose(wp, wq, ws);
+              const modelEl = scene.querySelector('#ar-model');
+              if (!modelEl || !modelEl.object3D) return;
 
-                const frozen = document.createElement('a-entity');
-                frozen.id = 'ar-frozen';
-                scene.appendChild(frozen);
-                frozen.object3D.position.copy(wp);
-                frozen.object3D.quaternion.copy(wq);
-                frozen.object3D.scale.copy(ws);
+              modelEl.object3D.updateWorldMatrix(true, true);
+              const wp = new THREE.Vector3();
+              const wq = new THREE.Quaternion();
+              const ws = new THREE.Vector3();
+              modelEl.object3D.matrixWorld.decompose(wp, wq, ws);
 
-                const modelEl = scene.querySelector('#ar-model');
-                if (modelEl) {
+              // Create a frozen holder directly in the scene (not inside the marker)
+              const frozen = document.createElement('a-entity');
+              frozen.id = 'ar-frozen';
+              scene.appendChild(frozen);
+
+              // Wait one tick for it to attach, then set transform + adopt the model
+              setTimeout(() => {
+                try {
+                  frozen.object3D.position.copy(wp);
+                  frozen.object3D.quaternion.copy(wq);
+                  frozen.object3D.scale.copy(ws);
+
                   frozen.appendChild(modelEl);
                   modelEl.setAttribute('position', '0 0 0');
                   modelEl.setAttribute('rotation', '0 0 0');
-                  modelEl.setAttribute('scale', '1 1 1');
+                  modelEl.setAttribute('scale',    '1 1 1');
                   arModelEntity = modelEl;
-                }
-              }
+                } catch (_) {}
+              }, 0);
             } catch (_) {}
 
             document.getElementById('ar-scan-hint').style.opacity = '0';
@@ -1500,12 +1508,17 @@
         });
       } catch (_) {}
 
-      // 4. Also stop any MediaStreamTracks that navigator.mediaDevices may still hold
+      // 4. Kill any lingering MediaStreamTracks AR.js may have opened independently
       try {
-        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-          // Enumerate and stop any remaining active tracks via RTCPeerConnection trick
-          // (belt-and-suspenders — actual stream refs are nulled above)
-        }
+        document.querySelectorAll('video').forEach(v => {
+          try {
+            if (v.srcObject) {
+              v.srcObject.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+              v.srcObject = null;
+            }
+            v.pause();
+          } catch (_) {}
+        });
       } catch (_) {}
 
       // 5. Wipe DOM
@@ -1522,7 +1535,6 @@
       hideError();
       const btn = document.getElementById('btn-start-ar');
       btn.disabled = true;
-      btn.textContent = 'Starting camera…';
 
       // Clean up any leftover stream from a previous session
       stopCameraCanvasLoop(); // resets arCameraStream, arHiddenVideo, rAF
@@ -1535,7 +1547,6 @@
         });
       } catch (e) {
         btn.disabled = false;
-        btn.innerHTML = '<span>📷</span> Start AR';
         const msg = e?.message || String(e);
         if (/permission|denied|NotAllowed/i.test(msg)) {
           showError('Camera permission denied. Allow camera access in your browser settings, then try again.');
@@ -1551,7 +1562,6 @@
 
       arStarted = true;
       btn.disabled = false;
-      btn.innerHTML = '<span>📷</span> Start AR';
       showView('ar');
       await injectARScene();
     }
