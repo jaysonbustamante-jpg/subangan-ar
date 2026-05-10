@@ -1197,13 +1197,11 @@
     function applyARTransform() {
       if (!arModelEntity) return;
       if (arModelFrozen) {
-        // When frozen, model is in world space — apply relative offsets only
         arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
         arModelEntity.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
         arModelEntity.setAttribute('position', `0 ${arY} 0`);
       } else {
-        // Normal: model is parented to marker pivot
-        arModelEntity.setAttribute('rotation', `0 ${180 + arRot} 0`);
+        arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
         arModelEntity.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
         arModelEntity.setAttribute('position', `0 ${0.5 + arY} 0`);
       }
@@ -1367,15 +1365,15 @@
             emitevents="true"
           >
             <!-- Model sits on the marker surface at origin.                  -->
-            <!-- rotation="-90 0 0" corrects glTF orientation so the model   -->
-            <!-- stands upright relative to the marker plane.                 -->
-            <!-- scale and position are managed via applyARTransform()        -->
+            <!-- rotation="0 0 0" — glTF is Y-up which matches AR.js marker  -->
+            <!-- plane, so no axis correction needed. Y offset lifts the pot  -->
+            <!-- slightly above the marker surface.                           -->
             <a-entity id="ar-pivot">
               <a-gltf-model
                 id="ar-model"
                 src="#ar-glb"
                 position="0 0.5 0"
-                rotation="0 180 0"
+                rotation="0 0 0"
                 scale="1.2 1.2 1.2"
               ></a-gltf-model>
             </a-entity>
@@ -1407,64 +1405,63 @@
 
         const marker = scene.querySelector('#hiro-marker');
         if (marker) {
+          let markerEverFound = false;
+
           marker.addEventListener('markerFound', () => {
             document.getElementById('ar-scan-hint').style.opacity = '0';
             arModelEntity = scene.querySelector('#ar-model');
             arModelFrozen = false;
+            markerEverFound = true;
 
-            // If we have a frozen copy from a previous loss, remove it
-            const old = scene.querySelector('#ar-frozen');
-            if (old) old.remove();
-
-            // Re-parent the original model back under the marker pivot
+            // Ensure model is visible and correctly parented under pivot
             const pivot = scene.querySelector('#ar-pivot');
             const modelEl = scene.querySelector('#ar-model');
             if (pivot && modelEl && modelEl.parentNode !== pivot) {
               pivot.appendChild(modelEl);
+            }
+            if (modelEl) {
+              modelEl.setAttribute('visible', 'true');
               modelEl.setAttribute('position', '0 0.5 0');
-              modelEl.setAttribute('rotation', '0 180 0');
+              modelEl.setAttribute('rotation', '0 0 0');
               modelEl.setAttribute('scale', '1.2 1.2 1.2');
               arModelEntity = modelEl;
             }
           });
 
           marker.addEventListener('markerLost', () => {
-            if (arModelFrozen || !arModelEntity) return;
+            if (!markerEverFound) return;
             arModelFrozen = true;
 
-            // Snapshot world transform of the model and place a frozen entity at that position
+            // Keep the model visible — AR.js hides the marker's children automatically.
+            // We move the model OUT of the marker into the scene root so it stays rendered.
             try {
               const modelEl = scene.querySelector('#ar-model');
-              if (!modelEl || !modelEl.object3D) return;
+              if (!modelEl) return;
 
+              // Capture current world transform before reparenting
               modelEl.object3D.updateWorldMatrix(true, true);
               const wp = new THREE.Vector3();
               const wq = new THREE.Quaternion();
               const ws = new THREE.Vector3();
               modelEl.object3D.matrixWorld.decompose(wp, wq, ws);
 
-              // Create a frozen holder directly in the scene (not inside the marker)
-              const frozen = document.createElement('a-entity');
-              frozen.id = 'ar-frozen';
-              scene.appendChild(frozen);
+              // Move model to scene root
+              scene.appendChild(modelEl);
 
-              // Wait one tick for it to attach, then set transform + adopt the model
-              setTimeout(() => {
-                try {
-                  frozen.object3D.position.copy(wp);
-                  frozen.object3D.quaternion.copy(wq);
-                  frozen.object3D.scale.copy(ws);
+              // Apply the captured world transform directly
+              modelEl.object3D.position.copy(wp);
+              modelEl.object3D.quaternion.copy(wq);
+              modelEl.object3D.scale.copy(ws);
+              modelEl.object3D.matrixWorldNeedsUpdate = true;
 
-                  frozen.appendChild(modelEl);
-                  modelEl.setAttribute('position', '0 0 0');
-                  modelEl.setAttribute('rotation', '0 0 0');
-                  modelEl.setAttribute('scale',    '1 1 1');
-                  arModelEntity = modelEl;
-                } catch (_) {}
-              }, 0);
+              // Clear A-Frame attribute overrides so Three.js position is authoritative
+              modelEl.removeAttribute('position');
+              modelEl.removeAttribute('rotation');
+              modelEl.removeAttribute('scale');
+              modelEl.setAttribute('visible', 'true');
+
+              arModelEntity = modelEl;
             } catch (_) {}
-
-            document.getElementById('ar-scan-hint').style.opacity = '0';
           });
         }
       }, { once: true });
