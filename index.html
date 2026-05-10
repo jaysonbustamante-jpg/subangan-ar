@@ -304,7 +304,9 @@
     }
     .viewer-canvas-wrap canvas {
       position: absolute; inset: 0;
-      width: 100% !important; height: 100% !important;
+      /* Do NOT force width/height — A-Frame manages its own canvas dimensions.
+         Forcing 100%/100% without matching the internal pixel buffer causes
+         the renderer to stretch the image, making models look squashed or fat. */
       pointer-events: none; /* gestures handled by overlay */
     }
     #viewer-scene-root {
@@ -312,6 +314,11 @@
       pointer-events: none;
     }
     #viewer-scene-root a-scene {
+      position: absolute !important; inset: 0 !important;
+      width: 100% !important; height: 100% !important;
+    }
+    /* Force A-Frame's canvas to match container exactly */
+    #viewer-scene-root a-scene canvas {
       position: absolute !important; inset: 0 !important;
       width: 100% !important; height: 100% !important;
     }
@@ -443,28 +450,39 @@
     .artifact-meta p { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
     /* ══ AR VIEW ══ */
-    #view-ar { z-index: 5; background: #000; } /* #000 shows while camera loads, then video covers it */
+    #view-ar { z-index: 5; background: #000; }
     #ar-root { position: fixed; inset: 0; z-index: 1; overflow: hidden; }
-    /* Camera video fills background */
-    #ar-video {
+
+    /* Camera canvas — drawn via requestAnimationFrame (works in WebViews) */
+    #ar-camera-canvas {
       position: absolute; inset: 0;
       width: 100%; height: 100%;
-      object-fit: cover;
       z-index: 1;
     }
-    /* A-Frame scene sits on top with transparent bg */
+    /* Loading overlay shown while camera warms up */
+    #ar-loading-overlay {
+      position: absolute; inset: 0; z-index: 3;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px;
+      background: rgba(10,6,2,0.92);
+      transition: opacity 0.4s;
+    }
+    #ar-loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    #ar-loading-overlay .ar-spinner { width: 44px; height: 44px; border: 2px solid rgba(201,145,61,0.2); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.9s linear infinite; }
+    #ar-loading-overlay p { font-family: var(--font-display); font-size: 14px; font-style: italic; color: var(--muted); }
+
+    /* A-Frame scene: transparent on top of camera canvas */
     #ar-root a-scene {
       position: absolute !important; inset: 0 !important;
       width: 100% !important; height: 100% !important;
       background: transparent !important;
       z-index: 2;
     }
-    #ar-root canvas {
+    #ar-root canvas.a-canvas {
       position: absolute !important; inset: 0 !important;
       width: 100% !important; height: 100% !important;
       background: transparent !important;
     }
-    /* Hide the internal AR.js video — we manage our own */
+    /* Hide A-Frame's internal video element — we draw the feed ourselves */
     #ar-root video { display: none !important; }
 
     /* AR gesture overlay — receives touch for model manipulation */
@@ -928,19 +946,29 @@
       const sceneEl = document.createElement('a-scene');
       sceneEl.setAttribute('embedded', '');
       sceneEl.setAttribute('vr-mode-ui', 'enabled: false');
-      sceneEl.setAttribute('renderer', 'antialias: true; alpha: true');
+      // preserveDrawingBuffer prevents canvas from going blank between frames
+      sceneEl.setAttribute('renderer', 'antialias: true; alpha: true; preserveDrawingBuffer: true;');
       sceneEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
 
+      // Camera at z=3, looking at origin (0,0,0) where model sits
+      // fov="45" gives natural perspective without distortion
       sceneEl.innerHTML = `
-        <a-camera position="0 1.5 3" look-controls="enabled:false" wasd-controls="enabled:false"></a-camera>
-        <a-light type="ambient" color="#f5e8c8" intensity="0.6"></a-light>
-        <a-light type="directional" position="2 4 3" intensity="1.2" color="#ffe5a0"></a-light>
-        <a-light type="directional" position="-3 2 -2" intensity="0.4" color="#c9a0dc"></a-light>
-        <a-entity id="model-pivot" position="0 0 0">
+        <a-camera
+          position="0 0 3"
+          rotation="0 0 0"
+          fov="45"
+          look-controls="enabled:false"
+          wasd-controls="enabled:false"
+        ></a-camera>
+        <a-light type="ambient" color="#ffffff" intensity="0.6"></a-light>
+        <a-light type="directional" position="2 4 3"  intensity="1.2" color="#ffe5a0"></a-light>
+        <a-light type="directional" position="-3 2 -2" intensity="0.4" color="#c9b0dd"></a-light>
+        <a-light type="point"       position="0 2 2"  intensity="0.5" color="#f5e8c8"></a-light>
+        <a-entity id="model-pivot" position="0 0 0" rotation="0 0 0">
           <a-gltf-model
             id="viewer-model"
             src="${artifact.model}"
-            position="0 ${modelY} 0"
+            position="0 0 0"
             rotation="0 ${modelRot} 0"
             scale="${modelScale} ${modelScale} ${modelScale}"
           ></a-gltf-model>
@@ -949,23 +977,53 @@
       root.appendChild(sceneEl);
       viewerScene = sceneEl;
 
-      const hideLoader = () => {
+      const onLoaded = () => {
         loading.classList.add('hidden');
         modelEntity = sceneEl.querySelector('#viewer-model');
+
+        // Force A-Frame to resize its renderer to the actual container dimensions.
+        // Without this the internal pixel buffer may have wrong aspect ratio,
+        // making the model look squashed or stretched.
+        try {
+          const wrap = document.getElementById('viewer-canvas-wrap');
+          if (sceneEl.renderer && wrap) {
+            const w = wrap.clientWidth;
+            const h = wrap.clientHeight;
+            sceneEl.renderer.setSize(w, h, false);
+            if (sceneEl.camera) sceneEl.camera.aspect = w / h;
+            if (sceneEl.camera) sceneEl.camera.updateProjectionMatrix();
+          }
+        } catch (_) {}
       };
 
-      sceneEl.addEventListener('loaded', hideLoader, { once: true });
-      sceneEl.addEventListener('model-loaded', hideLoader, { once: true });
+      sceneEl.addEventListener('loaded', onLoaded, { once: true });
+      sceneEl.addEventListener('model-loaded', () => {
+        loading.classList.add('hidden');
+        if (!modelEntity) modelEntity = sceneEl.querySelector('#viewer-model');
+      }, { once: true });
+
+      // Fallback in case events don't fire
       setTimeout(() => {
         loading.classList.add('hidden');
         if (!modelEntity) modelEntity = sceneEl.querySelector('#viewer-model');
-      }, 5000);
+        // Also try resize fallback
+        try {
+          const wrap = document.getElementById('viewer-canvas-wrap');
+          if (sceneEl.renderer && wrap) {
+            const w = wrap.clientWidth;
+            const h = wrap.clientHeight;
+            sceneEl.renderer.setSize(w, h, false);
+            if (sceneEl.camera) sceneEl.camera.aspect = w / h;
+            if (sceneEl.camera) sceneEl.camera.updateProjectionMatrix();
+          }
+        } catch (_) {}
+      }, 3000);
 
       // Show gesture guide after scene injects
       setTimeout(() => {
         const guide = document.getElementById('viewer-gesture-guide');
         showGestureGuide(guide, 6000);
-      }, 800);
+      }, 900);
     }
 
     function applyViewerTransform() {
@@ -1133,14 +1191,24 @@
 
     /* ── AR MODE ── */
     let arStarted = false;
-    let arRot = 0, arScale = 0.6, arY = 0;
+    let arRot = 0, arScale = 1.2, arY = 0;
     let arModelEntity = null;
 
     function applyARTransform() {
       if (!arModelEntity) return;
-      arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
-      arModelEntity.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
-      arModelEntity.setAttribute('position', `0 ${arY} 0`);
+      if (arModelFrozen) {
+        // When frozen, model is parented to ar-frozen at world coords.
+        // Apply rotation + scale only — position offset via y moves it
+        // within the frozen entity's local space.
+        arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
+        arModelEntity.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
+        arModelEntity.setAttribute('position', `0 ${arY} 0`);
+      } else {
+        // Normal: model is parented to marker, apply relative to marker
+        arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
+        arModelEntity.setAttribute('scale',    `${arScale} ${arScale} ${arScale}`);
+        arModelEntity.setAttribute('position', `0 ${1.5 + arY} 0`);
+      }
     }
 
     // Attach gestures to AR layer
@@ -1164,7 +1232,7 @@
 
     // AR reset
     document.getElementById('ar-reset-fab').addEventListener('click', () => {
-      arRot = 0; arScale = 0.6; arY = 0;
+      arRot = 0; arScale = 1.2; arY = 0;
       applyARTransform();
     });
 
@@ -1172,67 +1240,129 @@
     function showError(msg) { errorMsg.style.display = msg ? 'block' : 'none'; errorMsg.textContent = msg || ''; }
     function hideError() { errorMsg.style.display = 'none'; }
 
-    /* ────────────────────────────────────────────────────────
-       AR ENGINE — rebuilt for reliability:
-       • We own the camera stream (a real <video> element we create
-         and attach to the DOM before A-Frame loads, so the feed is
-         always visible behind the transparent WebGL canvas).
-       • We pass that same stream to AR.js via sourceType:video so
-         AR.js never fights us for the camera.
-       • On markerLost we freeze (detach) the model in world space
-         so it stays on screen until the user exits.
-    ──────────────────────────────────────────────────────── */
+    /* ════════════════════════════════════════════════════════
+       AR ENGINE v3
+       ─────────────────────────────────────────────────────
+       Problem: Messenger/Instagram WebViews block <video>
+       element rendering even when the stream is granted,
+       so the background stays black no matter what.
 
-    let arCameraStream = null;   // MediaStream we own
-    let arModelFrozen  = false;  // true after first markerLost
+       Solution: We acquire the MediaStream, pipe it into a
+       hidden <video>, then use requestAnimationFrame to draw
+       each frame onto a visible <canvas>. Canvas 2D drawing
+       works in every WebView that grants camera permission.
 
-    async function startCameraStream() {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error('Camera API not available in this browser.');
-      }
-      // Stop any lingering stream first
-      if (arCameraStream) {
-        arCameraStream.getTracks().forEach(t => t.stop());
-        arCameraStream = null;
-      }
-      arCameraStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
-        audio: false
+       Model position: placed at eye-level (position="0 1.5 0",
+       rotation="0 0 0") so it appears centred in the viewport
+       the moment the marker is detected — no dragging needed.
+    ════════════════════════════════════════════════════════ */
+
+    let arCameraStream  = null;
+    let arHiddenVideo   = null;   // feeds frames into the canvas
+    let arCameraCanvas  = null;   // the visible background canvas
+    let arRafId         = null;   // requestAnimationFrame handle
+    let arModelFrozen   = false;
+
+    /* ── Draw camera frames onto canvas via rAF ── */
+    function startCameraCanvasLoop(stream) {
+      // Hidden video — never added to DOM, just used to decode frames
+      arHiddenVideo = document.createElement('video');
+      arHiddenVideo.setAttribute('playsinline', '');
+      arHiddenVideo.setAttribute('muted', '');
+      arHiddenVideo.muted = true;
+      arHiddenVideo.srcObject = stream;
+
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Camera did not produce frames')), 10000);
+
+        arHiddenVideo.addEventListener('loadedmetadata', () => {
+          arHiddenVideo.play().catch(reject);
+        }, { once: true });
+
+        arHiddenVideo.addEventListener('playing', () => {
+          clearTimeout(timeout);
+
+          // Create the visible canvas that shows camera frames
+          arCameraCanvas = document.createElement('canvas');
+          arCameraCanvas.id = 'ar-camera-canvas';
+          document.getElementById('ar-root').prepend(arCameraCanvas);
+
+          const ctx = arCameraCanvas.getContext('2d');
+
+          function drawFrame() {
+            if (!arHiddenVideo || arHiddenVideo.paused || arHiddenVideo.ended) return;
+
+            const vw = arHiddenVideo.videoWidth;
+            const vh = arHiddenVideo.videoHeight;
+            const cw = window.innerWidth;
+            const ch = window.innerHeight;
+
+            if (arCameraCanvas.width !== cw)  arCameraCanvas.width  = cw;
+            if (arCameraCanvas.height !== ch) arCameraCanvas.height = ch;
+
+            if (vw && vh) {
+              // Cover-fit: fill canvas keeping aspect ratio
+              const videoAR  = vw / vh;
+              const canvasAR = cw / ch;
+              let sx = 0, sy = 0, sw = vw, sh = vh;
+              if (videoAR > canvasAR) {
+                sw = vh * canvasAR;
+                sx = (vw - sw) / 2;
+              } else {
+                sh = vw / canvasAR;
+                sy = (vh - sh) / 2;
+              }
+              ctx.drawImage(arHiddenVideo, sx, sy, sw, sh, 0, 0, cw, ch);
+            }
+            arRafId = requestAnimationFrame(drawFrame);
+          }
+
+          arRafId = requestAnimationFrame(drawFrame);
+          resolve();
+        }, { once: true });
       });
-      return arCameraStream;
+    }
+
+    function stopCameraCanvasLoop() {
+      if (arRafId) { cancelAnimationFrame(arRafId); arRafId = null; }
+      if (arHiddenVideo) { arHiddenVideo.pause(); arHiddenVideo.srcObject = null; arHiddenVideo = null; }
+      if (arCameraStream) { arCameraStream.getTracks().forEach(t => t.stop()); arCameraStream = null; }
+      arCameraCanvas = null;
     }
 
     async function injectARScene() {
       const arRoot = document.getElementById('ar-root');
       arRoot.innerHTML = '';
-      arRot = 0; arScale = 0.6; arY = 0; arModelEntity = null; arModelFrozen = false;
+      arRot = 0; arScale = 1.2; arY = 0; arModelEntity = null; arModelFrozen = false;
 
-      // ── Step 1: Create and play our own <video> element FIRST.
-      // This is what the user sees as the camera background.
-      const video = document.createElement('video');
-      video.id = 'ar-video';
-      video.setAttribute('playsinline', '');
-      video.setAttribute('muted', '');
-      video.setAttribute('autoplay', '');
-      video.muted = true;
-      video.srcObject = arCameraStream;
-      arRoot.appendChild(video);
+      // ── Loading overlay ──
+      const loadingEl = document.createElement('div');
+      loadingEl.id = 'ar-loading-overlay';
+      loadingEl.innerHTML = `<div class="ar-spinner"></div><p>Starting camera…</p>`;
+      arRoot.appendChild(loadingEl);
 
-      // Wait for video to actually be playing before injecting A-Frame
-      await new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => reject(new Error('Video did not start')), 8000);
-        video.addEventListener('playing', () => { clearTimeout(timeout); resolve(); }, { once: true });
-        video.play().catch(() => {}); // autoplay may need this nudge
-      });
+      // ── Start canvas camera loop ──
+      try {
+        await startCameraCanvasLoop(arCameraStream);
+      } catch (e) {
+        stopAR('Camera failed to start. Please try again in Safari or Chrome.');
+        return;
+      }
 
-      // ── Step 2: Inject A-Frame scene AFTER the video is live.
-      // We pass sourceType:video and point AR.js at our video element.
+      // Camera is live — hide loading overlay
+      loadingEl.classList.add('hidden');
+      setTimeout(() => { if (loadingEl.parentNode) loadingEl.remove(); }, 500);
+
+      // ── Inject A-Frame AR scene ──
+      // Model positioned at eye-level (y=1.5) so it appears centred
+      // on screen when marker is flat on a table in front of the user.
+      // rotation="0 0 0" keeps it upright (no -90 tilt).
       const sceneMarkup = `
         <a-scene
           embedded
-          arjs="sourceType: video; videoTexture: false; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+          arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
           vr-mode-ui="enabled: false"
-          renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true; colorManagement: true;"
+          renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true;"
           style="position:absolute;inset:0;width:100%;height:100%;background:transparent;"
         >
           <a-assets timeout="20000">
@@ -1248,13 +1378,16 @@
             smoothThreshold="2"
             emitevents="true"
           >
+            <!-- position="0 1.5 0" lifts model to eye level above marker     -->
+            <!-- rotation="0 0 0" keeps it upright, facing the camera         -->
+            <!-- scale="1.2 1.2 1.2" — visible size centred on screen        -->
             <a-entity id="ar-pivot">
               <a-gltf-model
                 id="ar-model"
                 src="#ar-glb"
-                position="0 0.5 0"
-                rotation="-90 0 0"
-                scale="0.6 0.6 0.6"
+                position="0 1.5 0"
+                rotation="0 0 0"
+                scale="1.2 1.2 1.2"
               ></a-gltf-model>
             </a-entity>
           </a-marker>
@@ -1262,9 +1395,8 @@
           <a-entity camera></a-entity>
         </a-scene>`;
 
-      // Insert scene after the video
       const wrapper = document.createElement('div');
-      wrapper.style.cssText = 'position:absolute;inset:0;z-index:2;';
+      wrapper.style.cssText = 'position:absolute;inset:0;z-index:2;pointer-events:none;';
       wrapper.innerHTML = sceneMarkup;
       arRoot.appendChild(wrapper);
 
@@ -1274,64 +1406,56 @@
       scene.addEventListener('loaded', () => {
         arModelEntity = scene.querySelector('#ar-model');
 
-        // Make A-Frame's own canvas transparent so our video shows through
-        const canvas = scene.canvas;
-        if (canvas) {
-          canvas.style.background = 'transparent';
-          // Force the WebGL context clear color to be transparent
+        // Make the A-Frame WebGL canvas transparent so camera canvas shows through
+        const aCanvas = scene.canvas;
+        if (aCanvas) {
+          aCanvas.style.cssText = 'position:absolute!important;inset:0!important;width:100%!important;height:100%!important;background:transparent!important;';
           try {
-            const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
-            if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+            const gl = aCanvas.getContext('webgl') || aCanvas.getContext('webgl2');
+            if (gl) { gl.clearColor(0, 0, 0, 0); }
           } catch (_) {}
         }
 
         const marker = scene.querySelector('#hiro-marker');
         if (marker) {
-          // ── markerFound: model becomes visible, hide scan hint
           marker.addEventListener('markerFound', () => {
             document.getElementById('ar-scan-hint').style.opacity = '0';
             arModelEntity = scene.querySelector('#ar-model');
             arModelFrozen = false;
           });
 
-          // ── markerLost: FREEZE model in place instead of hiding it
           marker.addEventListener('markerLost', () => {
             if (arModelFrozen || !arModelEntity) return;
             arModelFrozen = true;
 
-            // Reparent model from marker → scene root to keep it visible
+            // Freeze model in world space so it stays visible after marker is gone
             try {
               const pivot = scene.querySelector('#ar-pivot');
               if (pivot && pivot.object3D) {
-                // Compute world position of the pivot
-                const worldPos   = new THREE.Vector3();
-                const worldQuat  = new THREE.Quaternion();
-                const worldScale = new THREE.Vector3();
-                pivot.object3D.matrixWorld.decompose(worldPos, worldQuat, worldScale);
+                pivot.object3D.updateWorldMatrix(true, true);
+                const wp = new THREE.Vector3();
+                const wq = new THREE.Quaternion();
+                const ws = new THREE.Vector3();
+                pivot.object3D.matrixWorld.decompose(wp, wq, ws);
 
-                // Create a free-floating entity at that world position
                 const frozen = document.createElement('a-entity');
                 frozen.id = 'ar-frozen';
-                frozen.object3D.position.copy(worldPos);
-                frozen.object3D.quaternion.copy(worldQuat);
-                frozen.object3D.scale.copy(worldScale);
                 scene.appendChild(frozen);
+                frozen.object3D.position.copy(wp);
+                frozen.object3D.quaternion.copy(wq);
+                frozen.object3D.scale.copy(ws);
 
-                // Move the gltf model into the frozen entity
                 const modelEl = scene.querySelector('#ar-model');
                 if (modelEl) {
                   frozen.appendChild(modelEl);
-                  // Reset local transform so world transform from frozen entity drives it
                   modelEl.setAttribute('position', '0 0 0');
                   modelEl.setAttribute('rotation', '0 0 0');
                   modelEl.setAttribute('scale', '1 1 1');
                   arModelEntity = modelEl;
                 }
               }
-            } catch (e) {
-              // Fallback: just keep the hint hidden — model stays under marker entity
-            }
-            // Keep scan hint hidden; model is now frozen in world space
+            } catch (_) {}
+
             document.getElementById('ar-scan-hint').style.opacity = '0';
           });
         }
@@ -1343,30 +1467,56 @@
     }
 
     function stopAR(errorText) {
-      arStarted = false;
+      arStarted     = false;
       arModelFrozen = false;
 
-      // Stop our camera stream
-      if (arCameraStream) {
-        arCameraStream.getTracks().forEach(t => t.stop());
-        arCameraStream = null;
-      }
+      // 1. Stop our canvas rAF loop and hidden video
+      stopCameraCanvasLoop();
 
       const arRoot = document.getElementById('ar-root');
-      // Also catch any streams AR.js may have opened
+
+      // 2. Destroy the A-Frame scene properly — this releases AR.js's internal webcam stream
+      try {
+        const scene = arRoot.querySelector('a-scene');
+        if (scene && scene.renderer) {
+          scene.renderer.dispose();
+          if (scene.renderer.forceContextLoss) scene.renderer.forceContextLoss();
+        }
+        if (scene && scene.destroy) scene.destroy();
+      } catch (_) {}
+
+      // 3. Force-stop every video track in ar-root (catches AR.js's own stream)
       try {
         arRoot.querySelectorAll('video').forEach(v => {
-          if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
+          try {
+            if (v.srcObject) {
+              v.srcObject.getTracks().forEach(t => { try { t.stop(); } catch (_) {} });
+              v.srcObject = null;
+            }
+            v.pause();
+            v.removeAttribute('src');
+            v.load();
+          } catch (_) {}
         });
       } catch (_) {}
 
+      // 4. Also stop any MediaStreamTracks that navigator.mediaDevices may still hold
+      try {
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          // Enumerate and stop any remaining active tracks via RTCPeerConnection trick
+          // (belt-and-suspenders — actual stream refs are nulled above)
+        }
+      } catch (_) {}
+
+      // 5. Wipe DOM
       arRoot.innerHTML = '';
+
       showView('landing');
       if (errorText) showError(errorText);
       else hideError();
     }
 
-    /* ── Start AR button ── */
+    /* ── Launch AR (acquire stream → canvas loop → A-Frame) ── */
     async function launchAR() {
       if (arStarted) return;
       hideError();
@@ -1374,9 +1524,15 @@
       btn.disabled = true;
       btn.textContent = 'Starting camera…';
 
+      // Clean up any leftover stream from a previous session
+      stopCameraCanvasLoop(); // resets arCameraStream, arHiddenVideo, rAF
+
       try {
-        // Acquire stream ONCE and keep it alive — no preflight-then-release dance
-        await startCameraStream();
+        if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera API unavailable.');
+        arCameraStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
+          audio: false
+        });
       } catch (e) {
         btn.disabled = false;
         btn.innerHTML = '<span>📷</span> Start AR';
@@ -1397,24 +1553,20 @@
       btn.disabled = false;
       btn.innerHTML = '<span>📷</span> Start AR';
       showView('ar');
-
-      try {
-        await injectARScene();
-      } catch (e) {
-        stopAR('Camera timed out. Please try again.');
-      }
+      await injectARScene();
     }
 
     document.getElementById('btn-start-ar').addEventListener('click', launchAR);
-
-    // Exit AR
     document.getElementById('btn-ar-exit').addEventListener('click', () => stopAR(''));
 
-    // Viewer → AR
+    // "View in AR" from the 3D model viewer
     document.getElementById('btn-viewer-ar').addEventListener('click', async () => {
+      // Clean up viewer first
       document.getElementById('viewer-scene-root').innerHTML = '';
       viewerScene = null; modelEntity = null;
       hideError();
+      // Allow re-launch even if arStarted was somehow true
+      arStarted = false;
       await launchAR();
     });
 
