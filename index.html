@@ -443,11 +443,29 @@
     .artifact-meta p { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
     /* ══ AR VIEW ══ */
-    #view-ar { z-index: 5; background: transparent; }
-    #ar-root { position: fixed; inset: 0; z-index: 1; }
-    #ar-root a-scene { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
-    #ar-root canvas, #ar-root video { width: 100% !important; height: 100% !important; }
-    #ar-root video { object-fit: cover; }
+    #view-ar { z-index: 5; background: #000; } /* #000 shows while camera loads, then video covers it */
+    #ar-root { position: fixed; inset: 0; z-index: 1; overflow: hidden; }
+    /* Camera video fills background */
+    #ar-video {
+      position: absolute; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover;
+      z-index: 1;
+    }
+    /* A-Frame scene sits on top with transparent bg */
+    #ar-root a-scene {
+      position: absolute !important; inset: 0 !important;
+      width: 100% !important; height: 100% !important;
+      background: transparent !important;
+      z-index: 2;
+    }
+    #ar-root canvas {
+      position: absolute !important; inset: 0 !important;
+      width: 100% !important; height: 100% !important;
+      background: transparent !important;
+    }
+    /* Hide the internal AR.js video — we manage our own */
+    #ar-root video { display: none !important; }
 
     /* AR gesture overlay — receives touch for model manipulation */
     #ar-gesture-layer {
@@ -1154,43 +1172,82 @@
     function showError(msg) { errorMsg.style.display = msg ? 'block' : 'none'; errorMsg.textContent = msg || ''; }
     function hideError() { errorMsg.style.display = 'none'; }
 
-    /* ── CAMERA PREFLIGHT ── */
-    async function preflightCamera() {
+    /* ────────────────────────────────────────────────────────
+       AR ENGINE — rebuilt for reliability:
+       • We own the camera stream (a real <video> element we create
+         and attach to the DOM before A-Frame loads, so the feed is
+         always visible behind the transparent WebGL canvas).
+       • We pass that same stream to AR.js via sourceType:video so
+         AR.js never fights us for the camera.
+       • On markerLost we freeze (detach) the model in world space
+         so it stays on screen until the user exits.
+    ──────────────────────────────────────────────────────── */
+
+    let arCameraStream = null;   // MediaStream we own
+    let arModelFrozen  = false;  // true after first markerLost
+
+    async function startCameraStream() {
       if (!navigator.mediaDevices?.getUserMedia) {
         throw new Error('Camera API not available in this browser.');
       }
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: 'environment' } },
+      // Stop any lingering stream first
+      if (arCameraStream) {
+        arCameraStream.getTracks().forEach(t => t.stop());
+        arCameraStream = null;
+      }
+      arCameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         audio: false
       });
-      stream.getTracks().forEach(t => t.stop());
+      return arCameraStream;
     }
 
-    /* ── AR SCENE INJECTION (AR.js + Hiro marker) ── */
-    function injectARScene() {
+    async function injectARScene() {
       const arRoot = document.getElementById('ar-root');
       arRoot.innerHTML = '';
-      arRot = 0; arScale = 0.6; arY = 0; arModelEntity = null;
+      arRot = 0; arScale = 0.6; arY = 0; arModelEntity = null; arModelFrozen = false;
 
-      // Show gesture guide
-      const guide = document.getElementById('ar-gesture-guide');
-      guide.classList.remove('hidden', 'fading');
+      // ── Step 1: Create and play our own <video> element FIRST.
+      // This is what the user sees as the camera background.
+      const video = document.createElement('video');
+      video.id = 'ar-video';
+      video.setAttribute('playsinline', '');
+      video.setAttribute('muted', '');
+      video.setAttribute('autoplay', '');
+      video.muted = true;
+      video.srcObject = arCameraStream;
+      arRoot.appendChild(video);
 
-      // AR.js works by taking over the full page body when embedded=false,
-      // so we render into a dedicated container with position:fixed
+      // Wait for video to actually be playing before injecting A-Frame
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error('Video did not start')), 8000);
+        video.addEventListener('playing', () => { clearTimeout(timeout); resolve(); }, { once: true });
+        video.play().catch(() => {}); // autoplay may need this nudge
+      });
+
+      // ── Step 2: Inject A-Frame scene AFTER the video is live.
+      // We pass sourceType:video and point AR.js at our video element.
       const sceneMarkup = `
         <a-scene
           embedded
-          arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+          arjs="sourceType: video; videoTexture: false; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
           vr-mode-ui="enabled: false"
-          renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true;"
+          renderer="antialias: true; alpha: true; logarithmicDepthBuffer: true; colorManagement: true;"
           style="position:absolute;inset:0;width:100%;height:100%;background:transparent;"
         >
-          <a-assets timeout="15000">
+          <a-assets timeout="20000">
             <a-asset-item id="ar-glb" src="./artifacts1.glb"></a-asset-item>
           </a-assets>
 
-          <a-marker preset="hiro" id="hiro-marker" smooth="true" smoothCount="5" smoothTolerance="0.01" smoothThreshold="2">
+          <a-marker
+            preset="hiro"
+            id="hiro-marker"
+            smooth="true"
+            smoothCount="5"
+            smoothTolerance="0.01"
+            smoothThreshold="2"
+            emitevents="true"
+          >
             <a-entity id="ar-pivot">
               <a-gltf-model
                 id="ar-model"
@@ -1205,52 +1262,98 @@
           <a-entity camera></a-entity>
         </a-scene>`;
 
-      arRoot.innerHTML = sceneMarkup;
-      const scene = arRoot.querySelector('a-scene');
+      // Insert scene after the video
+      const wrapper = document.createElement('div');
+      wrapper.style.cssText = 'position:absolute;inset:0;z-index:2;';
+      wrapper.innerHTML = sceneMarkup;
+      arRoot.appendChild(wrapper);
+
+      const scene = wrapper.querySelector('a-scene');
       if (!scene) return;
 
-      // Watchdog — bail if camera never starts in 15s
-      let watchdogTimer = setTimeout(() => {
-        if (arStarted) stopAR('Camera did not start. Check permissions, close other camera apps, and try again.');
-      }, 15000);
-
-      const clearWatchdog = () => { clearTimeout(watchdogTimer); watchdogTimer = null; };
-
       scene.addEventListener('loaded', () => {
-        clearWatchdog();
         arModelEntity = scene.querySelector('#ar-model');
 
-        // Wire marker found/lost to update scan hint
+        // Make A-Frame's own canvas transparent so our video shows through
+        const canvas = scene.canvas;
+        if (canvas) {
+          canvas.style.background = 'transparent';
+          // Force the WebGL context clear color to be transparent
+          try {
+            const gl = canvas.getContext('webgl') || canvas.getContext('webgl2');
+            if (gl) { gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT); }
+          } catch (_) {}
+        }
+
         const marker = scene.querySelector('#hiro-marker');
         if (marker) {
+          // ── markerFound: model becomes visible, hide scan hint
           marker.addEventListener('markerFound', () => {
             document.getElementById('ar-scan-hint').style.opacity = '0';
             arModelEntity = scene.querySelector('#ar-model');
+            arModelFrozen = false;
           });
+
+          // ── markerLost: FREEZE model in place instead of hiding it
           marker.addEventListener('markerLost', () => {
-            document.getElementById('ar-scan-hint').style.opacity = '1';
+            if (arModelFrozen || !arModelEntity) return;
+            arModelFrozen = true;
+
+            // Reparent model from marker → scene root to keep it visible
+            try {
+              const pivot = scene.querySelector('#ar-pivot');
+              if (pivot && pivot.object3D) {
+                // Compute world position of the pivot
+                const worldPos   = new THREE.Vector3();
+                const worldQuat  = new THREE.Quaternion();
+                const worldScale = new THREE.Vector3();
+                pivot.object3D.matrixWorld.decompose(worldPos, worldQuat, worldScale);
+
+                // Create a free-floating entity at that world position
+                const frozen = document.createElement('a-entity');
+                frozen.id = 'ar-frozen';
+                frozen.object3D.position.copy(worldPos);
+                frozen.object3D.quaternion.copy(worldQuat);
+                frozen.object3D.scale.copy(worldScale);
+                scene.appendChild(frozen);
+
+                // Move the gltf model into the frozen entity
+                const modelEl = scene.querySelector('#ar-model');
+                if (modelEl) {
+                  frozen.appendChild(modelEl);
+                  // Reset local transform so world transform from frozen entity drives it
+                  modelEl.setAttribute('position', '0 0 0');
+                  modelEl.setAttribute('rotation', '0 0 0');
+                  modelEl.setAttribute('scale', '1 1 1');
+                  arModelEntity = modelEl;
+                }
+              }
+            } catch (e) {
+              // Fallback: just keep the hint hidden — model stays under marker entity
+            }
+            // Keep scan hint hidden; model is now frozen in world space
+            document.getElementById('ar-scan-hint').style.opacity = '0';
           });
         }
       }, { once: true });
 
-      // Detect camera video starting (clears watchdog early)
-      const obs = new MutationObserver(() => {
-        const video = arRoot.querySelector('video');
-        if (video && !video.__arjsSub) {
-          video.__arjsSub = true;
-          const onActive = () => clearWatchdog();
-          video.addEventListener('playing', onActive, { once: true });
-          if (video.readyState >= 3 && !video.paused) onActive();
-        }
-      });
-      obs.observe(arRoot, { childList: true, subtree: true });
+      // Show gesture guide
+      const guide = document.getElementById('ar-gesture-guide');
+      guide.classList.remove('hidden', 'fading');
     }
 
     function stopAR(errorText) {
       arStarted = false;
-      const arRoot = document.getElementById('ar-root');
+      arModelFrozen = false;
 
-      // Stop any active camera tracks before wiping DOM
+      // Stop our camera stream
+      if (arCameraStream) {
+        arCameraStream.getTracks().forEach(t => t.stop());
+        arCameraStream = null;
+      }
+
+      const arRoot = document.getElementById('ar-root');
+      // Also catch any streams AR.js may have opened
       try {
         arRoot.querySelectorAll('video').forEach(v => {
           if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
@@ -1263,41 +1366,46 @@
       else hideError();
     }
 
-    // Start AR button
-    document.getElementById('btn-start-ar').addEventListener('click', async () => {
+    /* ── Start AR button ── */
+    async function launchAR() {
       if (arStarted) return;
       hideError();
       const btn = document.getElementById('btn-start-ar');
       btn.disabled = true;
-      btn.textContent = 'Starting…';
+      btn.textContent = 'Starting camera…';
 
       try {
-        await preflightCamera();
+        // Acquire stream ONCE and keep it alive — no preflight-then-release dance
+        await startCameraStream();
       } catch (e) {
         btn.disabled = false;
         btn.innerHTML = '<span>📷</span> Start AR';
         const msg = e?.message || String(e);
-        if (msg.includes('Permission') || msg.includes('permission') || msg.includes('denied') || msg.includes('NotAllowed')) {
-          showError('Camera permission denied. Please allow camera access in your browser settings, then try again.');
-        } else if (msg.includes('NotFound') || msg.includes('no camera')) {
+        if (/permission|denied|NotAllowed/i.test(msg)) {
+          showError('Camera permission denied. Allow camera access in your browser settings, then try again.');
+        } else if (/NotFound|no camera/i.test(msg)) {
           showError('No camera found on this device.');
-        } else if (msg.includes('NotReadable') || msg.includes('in use') || msg.includes('busy')) {
-          showError('Camera is in use by another app. Close other apps and try again.');
+        } else if (/NotReadable|in use|busy/i.test(msg)) {
+          showError('Camera is busy. Close other apps using the camera and try again.');
         } else {
           showError(`Camera error: ${msg}`);
         }
         return;
       }
 
-      // Small delay to ensure camera stream is fully released before MindAR re-opens it
-      await new Promise(r => setTimeout(r, 400));
-
       arStarted = true;
       btn.disabled = false;
       btn.innerHTML = '<span>📷</span> Start AR';
       showView('ar');
-      injectARScene();
-    });
+
+      try {
+        await injectARScene();
+      } catch (e) {
+        stopAR('Camera timed out. Please try again.');
+      }
+    }
+
+    document.getElementById('btn-start-ar').addEventListener('click', launchAR);
 
     // Exit AR
     document.getElementById('btn-ar-exit').addEventListener('click', () => stopAR(''));
@@ -1307,14 +1415,7 @@
       document.getElementById('viewer-scene-root').innerHTML = '';
       viewerScene = null; modelEntity = null;
       hideError();
-      const btn = document.getElementById('btn-start-ar');
-      btn.disabled = true;
-      try { await preflightCamera(); } catch (_) {}
-      await new Promise(r => setTimeout(r, 400));
-      arStarted = true;
-      btn.disabled = false;
-      showView('ar');
-      injectARScene();
+      await launchAR();
     });
 
     /* ── NAVIGATION ── */
