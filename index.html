@@ -535,6 +535,46 @@
     }
     .ar-reset-fab:active { transform: scale(0.9); background: rgba(201,145,61,0.2); }
 
+    /* AR auto-rotate spin button */
+    .ar-spin-fab {
+      position: fixed;
+      bottom: 82px;
+      right: 20px;
+      z-index: 9997;
+      appearance: none;
+      border: 1px solid var(--stroke);
+      background: rgba(26, 18, 9, 0.85);
+      color: var(--gold2);
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 18px;
+      display: grid;
+      place-items: center;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.5);
+      transition: background 0.15s, transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .ar-spin-fab:active { transform: scale(0.93); }
+    .ar-spin-fab.spinning {
+      background: rgba(201, 145, 61, 0.22);
+      border-color: var(--gold);
+      box-shadow: 0 4px 20px rgba(201, 145, 61, 0.35);
+      color: var(--gold2);
+    }
+    /* Spin the icon when active */
+    .ar-spin-fab.spinning .spin-icon {
+      animation: spinIcon 1.2s linear infinite;
+    }
+    @keyframes spinIcon {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+
     /* AR gesture guide overlay */
     #ar-gesture-guide {
       position: fixed;
@@ -788,6 +828,11 @@
       <div class="ar-scan-hint" id="ar-scan-hint">Point camera at marker to reveal artifact</div>
     </div>
 
+    <!-- AR Auto-Rotate Button: tap to toggle, hold to spin -->
+    <button class="ar-spin-fab" id="ar-spin-fab" title="Auto-rotate model">
+      <span class="spin-icon">⟳</span>
+    </button>
+
     <!-- AR Reset FAB -->
     <button class="ar-reset-fab" id="ar-reset-fab" title="Reset model">↺</button>
   </div>
@@ -944,6 +989,23 @@
       const placeholder = document.getElementById('model-placeholder');
       loading.classList.remove('hidden');
       placeholder.classList.add('hidden');
+
+      // AR.js patches A-Frame globally, so ANY <a-scene> tries to call
+      // getUserMedia() — even in the plain 3D viewer with no AR.
+      // Stub it out for the duration of scene creation so the browser
+      // never shows a camera-permission prompt in the Archive gallery.
+      const _realGUM = navigator.mediaDevices && navigator.mediaDevices.getUserMedia
+        ? navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices) : null;
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.getUserMedia = () => Promise.reject(new DOMException('NotAllowedError'));
+      }
+      // Restore the real getUserMedia after A-Frame has initialised the scene
+      // (it only calls GUM during setup, not on every frame)
+      setTimeout(() => {
+        if (navigator.mediaDevices && _realGUM) {
+          navigator.mediaDevices.getUserMedia = _realGUM;
+        }
+      }, 3000);
 
       const sceneEl = document.createElement('a-scene');
       sceneEl.setAttribute('embedded', '');
@@ -1283,6 +1345,89 @@
       applyARTransform();
     });
 
+    /* ── AR Auto-Rotate (spin) button ── */
+    // Tap  → toggle continuous auto-rotation on/off
+    // Hold → spin only while finger is held down (releases on touchend/mouseup)
+    let arAutoRotating  = false;  // toggled by tap
+    let arSpinRafId     = null;
+    let arHoldActive    = false;  // true only during a held press
+    let arLongPressTimer = null;
+    const AR_SPIN_SPEED = 0.6;    // degrees per frame at 60 fps
+
+    function startAutoRotate() {
+      if (arSpinRafId) return;
+      arAutoRotating = true;
+      const spinFab = document.getElementById('ar-spin-fab');
+      spinFab.classList.add('spinning');
+
+      function spinFrame() {
+        arRot += AR_SPIN_SPEED;
+        applyARTransform();
+        arSpinRafId = requestAnimationFrame(spinFrame);
+      }
+      arSpinRafId = requestAnimationFrame(spinFrame);
+    }
+
+    function stopAutoRotate() {
+      arAutoRotating = false;
+      if (arSpinRafId) { cancelAnimationFrame(arSpinRafId); arSpinRafId = null; }
+      const spinFab = document.getElementById('ar-spin-fab');
+      if (spinFab) spinFab.classList.remove('spinning');
+    }
+
+    const arSpinFab = document.getElementById('ar-spin-fab');
+
+    // Touch: distinguish tap vs hold
+    arSpinFab.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      arHoldActive = false;
+
+      // Start a long-press timer — if held >200 ms, treat as hold-to-spin
+      arLongPressTimer = setTimeout(() => {
+        arHoldActive = true;
+        // If not already toggled on, start spinning for the hold duration
+        if (!arAutoRotating) startAutoRotate();
+      }, 200);
+    }, { passive: false });
+
+    arSpinFab.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      clearTimeout(arLongPressTimer);
+
+      if (arHoldActive) {
+        // Hold released → stop if it was only a hold (not a toggle)
+        if (!arAutoRotating || arHoldActive) stopAutoRotate();
+        arHoldActive = false;
+      } else {
+        // Short tap → toggle
+        if (arAutoRotating) stopAutoRotate();
+        else startAutoRotate();
+      }
+    }, { passive: false });
+
+    // Mouse fallback (desktop / devtools)
+    arSpinFab.addEventListener('mousedown', () => {
+      arHoldActive = false;
+      arLongPressTimer = setTimeout(() => {
+        arHoldActive = true;
+        if (!arAutoRotating) startAutoRotate();
+      }, 200);
+    });
+    arSpinFab.addEventListener('mouseup', () => {
+      clearTimeout(arLongPressTimer);
+      if (arHoldActive) {
+        stopAutoRotate();
+        arHoldActive = false;
+      } else {
+        if (arAutoRotating) stopAutoRotate();
+        else startAutoRotate();
+      }
+    });
+    arSpinFab.addEventListener('mouseleave', () => {
+      clearTimeout(arLongPressTimer);
+      if (arHoldActive) { stopAutoRotate(); arHoldActive = false; }
+    });
+
     const errorMsg = document.getElementById('error-msg');
     function showError(msg) { errorMsg.style.display = msg ? 'block' : 'none'; errorMsg.textContent = msg || ''; }
     function hideError() { errorMsg.style.display = 'none'; }
@@ -1517,6 +1662,7 @@
       arStarted       = false;
       arModelFrozen   = false;
       _arState.active = false; // halt the tick component between sessions
+      stopAutoRotate();        // stop any ongoing auto-rotation
 
       // 1. Stop our canvas rAF loop and hidden video
       stopCameraCanvasLoop();
