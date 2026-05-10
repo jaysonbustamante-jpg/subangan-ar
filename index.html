@@ -443,7 +443,7 @@
     .artifact-meta p { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
     /* ══ AR VIEW ══ */
-    #view-ar { z-index: 5; background: #000; }
+    #view-ar { z-index: 5; background: transparent; }
     #ar-root { position: fixed; inset: 0; z-index: 1; }
     #ar-root a-scene { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
     #ar-root canvas, #ar-root video { width: 100% !important; height: 100% !important; }
@@ -524,6 +524,19 @@
 <body>
 
   <div class="museum-bg"></div>
+
+  <!-- ══ IN-APP BROWSER WARNING ══ -->
+  <div id="inapp-warning" style="display:none;position:fixed;top:0;left:0;right:0;z-index:99999;background:rgba(180,80,0,0.97);color:#fff;padding:12px 18px;font-family:system-ui,sans-serif;font-size:13px;line-height:1.5;text-align:center;border-bottom:1px solid rgba(255,180,80,0.4);">
+    ⚠️ You're in an in-app browser. For AR camera to work, open this page in <b>Safari</b> (iOS) or <b>Chrome</b> (Android).
+    <button onclick="document.getElementById('inapp-warning').style.display='none'" style="margin-left:12px;background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:#fff;padding:3px 10px;border-radius:6px;cursor:pointer;font-size:12px;">✕ Dismiss</button>
+  </div>
+  <script>
+    (function(){
+      const ua = navigator.userAgent || '';
+      const isInApp = /FBAN|FBAV|Instagram|Messenger|Twitter|Line\/|MicroMessenger|WebView|(iPhone|iPod|iPad)(?!.*Safari)/i.test(ua);
+      if (isInApp) document.getElementById('inapp-warning').style.display = 'block';
+    })();
+  </script>
 
   <!-- ══ VIEW 1: LANDING ══ -->
   <div id="view-landing" class="view active">
@@ -1036,8 +1049,7 @@
           lastX = null; lastMidY = null; lastPinchDist = null;
           isGesturing = false;
         } else if (count === 1) {
-          const id = Object.keys(touches)[0];
-          lastX = touches[id].x;
+          lastX = null; // anchor on next touchmove to prevent snap/flip
           lastMidY = null; lastPinchDist = null;
         }
       }, { passive: true });
