@@ -1,587 +1,1573 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Subangan ARchive - Complete Controls</title>
-  
-  <!-- A-Frame -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#1a1209" />
+  <title>Subangan ARchive System</title>
+
+  <!-- A-Frame & MindAR -->
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-  
-  <!-- AR.js -->
-  <script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+
+  <!-- Google Fonts: Cormorant Garamond (display) + Jost (body) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet" />
 
   <style>
-    * {
-      user-select: none;
-      -webkit-tap-highlight-color: transparent;
+    /* ══════════════════════════════════════════════
+       TOKENS & RESET
+    ══════════════════════════════════════════════ */
+    :root {
+      --ink:       #1a1209;
+      --ink2:      #2b1f0e;
+      --parchment: #f5efe3;
+      --cream:     #fdf8f0;
+      --gold:      #c9913d;
+      --gold2:     #d4af37;
+      --gold-dim:  #8a6020;
+      --amber:     #e8a020;
+      --rust:      #7a3b1e;
+      --panel:     rgba(26, 18, 9, 0.72);
+      --panel2:    rgba(26, 18, 9, 0.55);
+      --stroke:    rgba(201, 145, 61, 0.3);
+      --stroke2:   rgba(201, 145, 61, 0.15);
+      --text:      #f5efe3;
+      --muted:     rgba(245, 239, 227, 0.7);
+      --muted2:    rgba(245, 239, 227, 0.45);
+      --font-display: 'Cormorant Garamond', Georgia, serif;
+      --font-body:    'Jost', system-ui, sans-serif;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     }
 
-    body {
-      margin: 0;
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%; height: 100%;
       overflow: hidden;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--ink);
+      font-family: var(--font-body);
+      color: var(--text);
     }
-    
-    /* Overlay */
-    #ui-overlay {
+
+    /* Noise grain overlay */
+    body::before {
+      content: '';
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(circle at 20% 30%, #0a1f0a, #051005);
-      z-index: 1000;
-      display: flex;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 99990;
+      opacity: 0.5;
+    }
+
+    /* ══════════════════════════════════════════════
+       VIEWS SYSTEM
+    ══════════════════════════════════════════════ */
+    .view {
+      position: fixed;
+      inset: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      display: none;
+      flex-direction: column;
       align-items: center;
-      justify-content: center;
-      padding: 20px;
-      transition: opacity 0.5s ease;
     }
-    
-    .card {
-      max-width: 480px;
-      background: rgba(10, 20, 10, 0.85);
-      backdrop-filter: blur(20px);
-      border-radius: 48px;
-      padding: 32px 28px;
-      border: 1px solid rgba(74, 222, 128, 0.3);
-      text-align: center;
-      color: white;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    }
-    
-    .card h1 {
-      margin: 0 0 8px;
-      font-size: 32px;
-      font-weight: 700;
-      background: linear-gradient(135deg, #4ade80, #22c55e);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    
-    .card p {
-      opacity: 0.8;
-      margin-bottom: 20px;
-    }
-    
-    .btn {
-      background: linear-gradient(135deg, #22c55e, #16a34a);
-      border: none;
-      color: white;
-      padding: 14px 32px;
-      font-size: 18px;
-      font-weight: 600;
-      border-radius: 60px;
-      cursor: pointer;
-      margin-top: 16px;
-      transition: all 0.2s ease;
-      width: 100%;
-    }
-    
-    .btn:active {
-      transform: scale(0.97);
-    }
-    
-    .feature-badge {
-      display: inline-block;
-      background: rgba(74, 222, 128, 0.15);
-      border: 1px solid rgba(74, 222, 128, 0.4);
-      border-radius: 100px;
-      padding: 6px 14px;
-      font-size: 12px;
-      margin: 4px;
-    }
-    
-    .marker-box {
-      background: rgba(0, 0, 0, 0.4);
-      border-radius: 20px;
-      padding: 12px;
-      margin-top: 20px;
-      font-size: 12px;
-    }
-    
-    .marker-box a {
-      color: #4ade80;
-    }
-    
-    .hidden {
-      opacity: 0;
+    .view.active { display: flex; }
+
+    /* ══════════════════════════════════════════════
+       ANIMATED BACKGROUND
+    ══════════════════════════════════════════════ */
+    .museum-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(ellipse 70% 50% at 15% 20%, rgba(201, 145, 61, 0.18) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 85% 70%, rgba(122, 59, 30, 0.2) 0%, transparent 55%),
+        radial-gradient(ellipse 80% 60% at 50% 100%, rgba(43, 31, 14, 0.8) 0%, transparent 70%),
+        linear-gradient(170deg, #1a1209 0%, #2b1f0e 40%, #1a1209 100%);
       pointer-events: none;
     }
-    
-    /* Hide A-Frame VR button */
-    .a-enter-vr, .a-enter-ar {
-      display: none !important;
+    /* Subtle animated light sweep */
+    .museum-bg::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: conic-gradient(from 0deg at 20% 30%, transparent 0deg, rgba(201, 145, 61, 0.04) 40deg, transparent 80deg);
+      animation: lightSweep 18s ease-in-out infinite alternate;
     }
-    
-    a-scene {
-      position: fixed !important;
-      top: 0 !important;
-      left: 0 !important;
+    @keyframes lightSweep {
+      from { transform: rotate(0deg) scale(1); }
+      to   { transform: rotate(15deg) scale(1.1); }
+    }
+
+    /* ══════════════════════════════════════════════
+       DECORATIVE LINES
+    ══════════════════════════════════════════════ */
+    .gold-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--gold-dim);
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      font-family: var(--font-body);
+      font-weight: 500;
+    }
+    .gold-line::before, .gold-line::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold-dim), transparent);
+      max-width: 80px;
+    }
+
+    /* ══════════════════════════════════════════════
+       LANDING VIEW
+    ══════════════════════════════════════════════ */
+    #view-landing {
+      justify-content: center;
+      padding: 24px 20px;
+      gap: 0;
+      z-index: 10;
+    }
+
+    .landing-inner {
+      position: relative;
+      z-index: 1;
+      width: min(720px, 100%);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      animation: riseIn 1s var(--ease-out) both;
+    }
+    @keyframes riseIn {
+      from { opacity: 0; transform: translateY(40px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Logo bar */
+    .logo-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .logo-gem {
+      width: 48px; height: 48px;
+      border-radius: 14px;
+      border: 1px solid var(--stroke);
+      background:
+        radial-gradient(circle at 35% 30%, rgba(255,255,255,0.25), transparent 50%),
+        linear-gradient(135deg, #c9913d, #7a3b1e);
+      box-shadow: 0 0 24px rgba(201, 145, 61, 0.25), inset 0 1px 0 rgba(255,255,255,0.15);
+      flex-shrink: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .logo-gem::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 4px,
+        rgba(255,255,255,0.04) 4px,
+        rgba(255,255,255,0.04) 5px
+      );
+    }
+    .logo-text h1 {
+      font-family: var(--font-display);
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      line-height: 1.1;
+    }
+    .logo-text .subtitle {
+      font-size: 11px;
+      color: var(--gold);
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      font-weight: 500;
+      margin-top: 3px;
+    }
+
+    /* Hero panel */
+    .hero-panel {
+      border: 1px solid var(--stroke);
+      border-radius: 20px;
+      padding: 28px 28px 24px;
+      background:
+        radial-gradient(ellipse 80% 60% at 10% 0%, rgba(201, 145, 61, 0.12), transparent 55%),
+        var(--panel);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(201, 145, 61, 0.12);
+    }
+
+    .hero-eyebrow {
+      font-size: 11px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--gold);
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: clamp(28px, 5vw, 42px);
+      font-weight: 300;
+      line-height: 1.15;
+      margin-bottom: 12px;
+    }
+    .hero-title em {
+      font-style: italic;
+      color: var(--gold2);
+    }
+    .hero-body {
+      font-size: 14px;
+      line-height: 1.65;
+      color: var(--muted);
+      max-width: 520px;
+    }
+
+    /* Two column panels */
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    @media (min-width: 560px) {
+      .info-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    .info-panel {
+      border: 1px solid var(--stroke2);
+      border-radius: 16px;
+      padding: 18px;
+      background: var(--panel2);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+    }
+    .info-panel h3 {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+      margin-bottom: 10px;
+      color: var(--gold2);
+    }
+    .steps-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .step-row {
+      display: grid;
+      grid-template-columns: 28px 1fr;
+      gap: 10px;
+      align-items: start;
+    }
+    .step-num {
+      width: 28px; height: 28px;
+      border-radius: 8px;
+      border: 1px solid var(--stroke);
+      background: rgba(201, 145, 61, 0.12);
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gold);
+    }
+    .step-row p { font-size: 13px; color: var(--muted); line-height: 1.45; padding-top: 4px; }
+    .step-row p b { color: var(--text); font-weight: 600; }
+
+    .notes-text { font-size: 13px; color: var(--muted); line-height: 1.55; }
+    .notes-text b { color: var(--text); font-weight: 600; }
+
+    /* Action buttons */
+    .action-row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+    @media (min-width: 420px) {
+      .action-row { grid-template-columns: 1fr 1fr 1fr; }
+    }
+
+    .btn {
+      appearance: none;
+      border: none;
+      cursor: pointer;
+      border-radius: 12px;
+      font-family: var(--font-body);
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      padding: 13px 16px;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: transform 0.18s var(--ease-out), box-shadow 0.18s var(--ease-out), opacity 0.18s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      background: rgba(255,255,255,0);
+      transition: background 0.15s;
+    }
+    .btn:hover::after { background: rgba(255,255,255,0.06); }
+    .btn:active { transform: scale(0.97) !important; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .btn-gold {
+      border: 1px solid rgba(201, 145, 61, 0.5);
+      background: linear-gradient(135deg, rgba(201, 145, 61, 0.35), rgba(122, 59, 30, 0.35));
+      color: var(--gold2);
+      box-shadow: 0 2px 12px rgba(201, 145, 61, 0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+    }
+    .btn-gold:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(201, 145, 61, 0.3);
+    }
+    .btn-ghost {
+      border: 1px solid var(--stroke2);
+      background: rgba(245, 239, 227, 0.05);
+      color: var(--muted);
+    }
+    .btn-ghost:hover {
+      transform: translateY(-2px);
+      border-color: var(--stroke);
+      color: var(--text);
+    }
+    .btn-primary {
+      border: 1px solid rgba(201, 145, 61, 0.6);
+      background: linear-gradient(135deg, rgba(201, 145, 61, 0.5), rgba(122, 59, 30, 0.5));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(201, 145, 61, 0.2);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(201, 145, 61, 0.35);
+    }
+
+    #error-msg {
+      font-size: 13px;
+      color: #ffb99a;
+      display: none;
+      margin-top: 8px;
+      line-height: 1.5;
+      padding: 10px 14px;
+      border: 1px solid rgba(255, 120, 60, 0.25);
+      border-radius: 10px;
+      background: rgba(255, 80, 20, 0.1);
+    }
+
+    /* ══════════════════════════════════════════════
+       ARCHIVE GALLERY VIEW
+    ══════════════════════════════════════════════ */
+    #view-archive {
+      z-index: 10;
+      padding: 0;
+      align-items: stretch;
+      justify-content: flex-start;
+      min-height: 100%;
+    }
+
+    .archive-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      width: 100%;
+      border-bottom: 1px solid var(--stroke2);
+      background: rgba(26, 18, 9, 0.88);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .archive-header-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+    .archive-header h2 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .archive-header-badge {
+      font-size: 10px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--gold);
+      border: 1px solid var(--stroke);
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: rgba(201, 145, 61, 0.08);
+      white-space: nowrap;
+    }
+
+    .archive-body {
+      flex: 1;
+      width: 100%;
+      padding: 28px 24px 40px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .archive-section-title {
+      font-family: var(--font-display);
+      font-size: 13px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--gold-dim);
+      margin-bottom: 18px;
+      font-weight: 500;
+    }
+
+    /* Gallery grid */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    @media (min-width: 600px) {
+      .gallery-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+    }
+
+    .artifact-card {
+      border: 1px solid var(--stroke2);
+      border-radius: 16px;
+      background: var(--panel2);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      overflow: hidden;
+      cursor: pointer;
+      transition: transform 0.22s var(--ease-out), box-shadow 0.22s var(--ease-out), border-color 0.2s;
+      animation: cardIn 0.5s var(--ease-out) both;
+    }
+    .artifact-card:nth-child(2) { animation-delay: 0.06s; }
+    .artifact-card:nth-child(3) { animation-delay: 0.12s; }
+    .artifact-card:nth-child(4) { animation-delay: 0.18s; }
+    .artifact-card:nth-child(5) { animation-delay: 0.24s; }
+    @keyframes cardIn {
+      from { opacity: 0; transform: translateY(20px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .artifact-card:hover {
+      transform: translateY(-4px) scale(1.01);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.45), 0 0 0 1px rgba(201, 145, 61, 0.3);
+      border-color: rgba(201, 145, 61, 0.35);
+    }
+    .artifact-card.selected {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px rgba(201, 145, 61, 0.4), 0 16px 40px rgba(0,0,0,0.5);
+    }
+
+    .card-thumb {
+      width: 100%;
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      background:
+        radial-gradient(ellipse 70% 60% at 50% 40%, rgba(201, 145, 61, 0.12), transparent 70%),
+        rgba(26, 18, 9, 0.6);
+      position: relative;
+      overflow: hidden;
+    }
+    .card-thumb-icon {
+      font-size: 52px;
+      opacity: 0.7;
+      filter: drop-shadow(0 4px 12px rgba(201, 145, 61, 0.3));
+      transition: transform 0.3s var(--ease-out);
+    }
+    .artifact-card:hover .card-thumb-icon { transform: scale(1.1) rotate(-3deg); }
+
+    /* Subtle shimmer on thumb */
+    .card-thumb::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.04) 0%, transparent 50%, rgba(255,255,255,0.02) 100%);
+    }
+
+    .card-info {
+      padding: 12px 14px 14px;
+      border-top: 1px solid var(--stroke2);
+    }
+    .card-name {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.2;
+      margin-bottom: 4px;
+    }
+    .card-origin {
+      font-size: 11px;
+      color: var(--gold-dim);
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+    .card-period {
+      font-size: 11px;
+      color: var(--muted2);
+      margin-top: 2px;
+    }
+
+    /* ══════════════════════════════════════════════
+       MODEL VIEWER VIEW
+    ══════════════════════════════════════════════ */
+    #view-model {
+      z-index: 10;
+      padding: 0;
+      align-items: stretch;
+      justify-content: flex-start;
+    }
+
+    .viewer-header {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      width: 100%;
+      border-bottom: 1px solid var(--stroke2);
+      background: rgba(26, 18, 9, 0.9);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .viewer-header-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .viewer-artifact-name {
+      font-family: var(--font-display);
+      font-size: 18px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .viewer-artifact-origin {
+      font-size: 11px;
+      color: var(--gold);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-top: 1px;
+      font-weight: 500;
+    }
+
+    .viewer-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      position: relative;
+      min-height: 0;
+    }
+
+    /* 3-D canvas area */
+    .viewer-canvas-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 340px;
+      background:
+        radial-gradient(ellipse 60% 50% at 50% 40%, rgba(201, 145, 61, 0.1), transparent 65%),
+        radial-gradient(ellipse 80% 70% at 80% 80%, rgba(122, 59, 30, 0.08), transparent 60%),
+        rgba(18, 12, 5, 0.9);
+      overflow: hidden;
+      cursor: grab;
+    }
+    .viewer-canvas-wrap:active { cursor: grabbing; }
+
+    .viewer-canvas-wrap canvas {
+      position: absolute;
+      inset: 0;
       width: 100% !important;
       height: 100% !important;
     }
-    
-    /* Control Panel - Modern Glassmorphism */
-    .control-panel {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%);
+
+    /* Loading overlay */
+    .model-loading {
+      position: absolute;
+      inset: 0;
       display: flex;
-      gap: 16px;
-      z-index: 1001;
-      background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(20px);
-      padding: 12px 20px;
-      border-radius: 80px;
-      border: 1px solid rgba(74, 222, 128, 0.3);
-      display: none;
-    }
-    
-    .ctrl-btn {
-      width: 64px;
-      height: 64px;
-      border-radius: 50%;
-      background: rgba(20, 20, 20, 0.8);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      z-index: 5;
+      background: rgba(18, 12, 5, 0.6);
       backdrop-filter: blur(4px);
-      border: 1.5px solid rgba(74, 222, 128, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 28px;
-      font-weight: bold;
-      color: #4ade80;
-      cursor: pointer;
-      transition: all 0.1s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
     }
-    
-    .ctrl-btn:active {
-      transform: scale(0.92);
-      background: rgba(74, 222, 128, 0.3);
-      border-color: #4ade80;
+    .model-loading.hidden { display: none; }
+    .spinner {
+      width: 42px; height: 42px;
+      border: 2px solid rgba(201, 145, 61, 0.2);
+      border-top-color: var(--gold);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
     }
-    
-    /* Right Panel - Vertical buttons */
-    .right-panel {
-      position: fixed;
-      right: 16px;
-      top: 50%;
-      transform: translateY(-50%);
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-label {
+      font-size: 13px;
+      color: var(--muted);
+      font-family: var(--font-display);
+      font-style: italic;
+      letter-spacing: 0.08em;
+    }
+
+    /* Placeholder (no model) */
+    .model-placeholder {
+      position: absolute;
+      inset: 0;
       display: flex;
       flex-direction: column;
-      gap: 16px;
-      z-index: 1001;
-      display: none;
-    }
-    
-    .right-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(10px);
-      border: 1.5px solid rgba(74, 222, 128, 0.5);
-      display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 24px;
-      font-weight: bold;
-      color: #4ade80;
-      cursor: pointer;
-      transition: all 0.1s ease;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      gap: 14px;
+      pointer-events: none;
     }
-    
-    .right-btn:active {
-      transform: scale(0.92);
-      background: rgba(74, 222, 128, 0.3);
+    .model-placeholder.hidden { display: none; }
+    .placeholder-icon { font-size: 64px; opacity: 0.25; }
+    .placeholder-label {
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-style: italic;
+      color: var(--muted2);
     }
-    
-    /* Left Panel - Reset button */
-    .left-panel {
-      position: fixed;
-      left: 16px;
-      top: 50%;
-      transform: translateY(-50%);
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      z-index: 1001;
-      display: none;
-    }
-    
-    .left-btn {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(10px);
-      border: 1.5px solid rgba(74, 222, 128, 0.5);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      font-weight: bold;
-      color: #4ade80;
-      cursor: pointer;
-      transition: all 0.1s ease;
-    }
-    
-    .left-btn:active {
-      transform: scale(0.92);
-      background: rgba(74, 222, 128, 0.3);
-    }
-    
-    #status-message {
-      position: fixed;
-      bottom: 110px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0, 0, 0, 0.6);
+
+    /* Controls bar */
+    .viewer-controls {
+      padding: 14px 20px;
+      border-top: 1px solid var(--stroke2);
+      background: rgba(26, 18, 9, 0.8);
       backdrop-filter: blur(12px);
-      border-radius: 40px;
-      padding: 10px 20px;
-      text-align: center;
-      color: #4ade80;
+      -webkit-backdrop-filter: blur(12px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .ctrl-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      border: 1px solid var(--stroke2);
+      border-radius: 12px;
+      padding: 6px 8px;
+      background: rgba(26, 18, 9, 0.5);
+    }
+    .ctrl-label {
+      font-size: 10px;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted2);
+      padding: 0 4px;
+      font-weight: 500;
+    }
+
+    .ctrl-btn {
+      appearance: none;
+      border: 1px solid var(--stroke2);
+      background: rgba(201, 145, 61, 0.08);
+      color: var(--gold2);
+      width: 36px; height: 36px;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 16px;
+      display: grid;
+      place-items: center;
+      transition: background 0.15s, transform 0.1s, border-color 0.15s;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+    .ctrl-btn:hover {
+      background: rgba(201, 145, 61, 0.18);
+      border-color: var(--stroke);
+    }
+    .ctrl-btn:active, .ctrl-btn.holding {
+      background: rgba(201, 145, 61, 0.28);
+      border-color: var(--gold);
+      transform: scale(0.93);
+    }
+    .ctrl-btn-reset {
+      width: auto;
+      padding: 0 14px;
+      font-size: 12px;
+      font-family: var(--font-body);
+      font-weight: 500;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      background: rgba(245, 239, 227, 0.05);
+    }
+    .ctrl-btn-reset:hover { color: var(--text); }
+
+    /* Artifact info strip */
+    .artifact-meta {
+      padding: 14px 20px;
+      background: rgba(26, 18, 9, 0.6);
+      border-top: 1px solid var(--stroke2);
+    }
+    .artifact-meta h3 {
+      font-family: var(--font-display);
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--gold2);
+      margin-bottom: 6px;
+      letter-spacing: 0.04em;
+    }
+    .artifact-meta p {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ══════════════════════════════════════════════
+       AR VIEW
+    ══════════════════════════════════════════════ */
+    #view-ar {
+      z-index: 5;
+      background: #000;
+    }
+    #ar-root {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+    #ar-root a-scene {
+      position: absolute !important;
+      inset: 0 !important;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    #ar-root canvas, #ar-root video {
+      width: 100% !important;
+      height: 100% !important;
+    }
+    #ar-root video { object-fit: cover; }
+
+    /* AR overlay HUD */
+    .ar-hud {
+      position: fixed;
+      inset: 0;
+      z-index: 9995;
+      pointer-events: none;
+    }
+    .ar-hud-top {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: linear-gradient(180deg, rgba(0,0,0,0.6), transparent);
+      pointer-events: all;
+    }
+    .ar-brand {
+      font-family: var(--font-display);
+      font-size: 16px;
+      font-weight: 500;
+      color: rgba(245, 239, 227, 0.9);
+      text-shadow: 0 2px 8px rgba(0,0,0,0.6);
+    }
+    .ar-exit-btn {
+      appearance: none;
+      border: 1px solid rgba(201, 145, 61, 0.4);
+      background: rgba(26, 18, 9, 0.7);
+      color: var(--gold2);
+      padding: 7px 14px;
+      border-radius: 10px;
+      font-family: var(--font-body);
       font-size: 13px;
       font-weight: 500;
-      z-index: 1001;
-      pointer-events: none;
-      white-space: nowrap;
-      border: 1px solid rgba(74, 222, 128, 0.3);
+      cursor: pointer;
+      transition: background 0.15s;
     }
-    
-    #indicator {
+    .ar-exit-btn:hover { background: rgba(26, 18, 9, 0.9); }
+
+    /* AR scan hint */
+    .ar-scan-hint {
+      position: absolute;
+      left: 50%; bottom: 80px;
+      transform: translateX(-50%);
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-style: italic;
+      color: rgba(245, 239, 227, 0.85);
+      text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+      text-align: center;
+      white-space: nowrap;
+      pointer-events: none;
+      animation: hintPulse 2.5s ease-in-out infinite;
+    }
+    @keyframes hintPulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+
+    /* AR Controls */
+    .ar-controls {
       position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(16px);
-      border-radius: 60px;
-      padding: 12px 24px;
-      color: #4ade80;
-      font-size: 16px;
-      font-weight: 600;
-      z-index: 1002;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.15s ease;
-      white-space: nowrap;
-      border: 1px solid rgba(74, 222, 128, 0.5);
-      font-family: monospace;
-      letter-spacing: 0.5px;
+      bottom: 0; left: 0; right: 0;
+      z-index: 9996;
+      padding: 12px 16px 18px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.75) 0%, transparent);
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
     }
+
+    /* A-Frame UI hiding */
+    .a-enter-vr, .a-enter-vr-button, .a-enter-ar-button,
+    .a-orientation-modal, .a-dialog-container, .a-modal {
+      display: none !important;
+    }
+
+    /* ══════════════════════════════════════════════
+       DIVIDER ORNAMENT
+    ══════════════════════════════════════════════ */
+    .ornament {
+      text-align: center;
+      color: var(--gold-dim);
+      font-size: 18px;
+      opacity: 0.4;
+      margin: 4px 0;
+    }
+
+    /* ══════════════════════════════════════════════
+       SCROLLBAR
+    ══════════════════════════════════════════════ */
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(201, 145, 61, 0.3); border-radius: 99px; }
   </style>
 </head>
-
 <body>
-  <div id="ui-overlay">
-    <div class="card">
-      <h1>🏺 Subangan ARchive</h1>
-      <p>Interactive digital archive with augmented reality</p>
-      
-      <div>
-        <span class="feature-badge">🔄 360° Spin</span>
-        <span class="feature-badge">↕️ Up/Down Height</span>
-        <span class="feature-badge">📏 Far/Close</span>
-        <span class="feature-badge">⏸ Hold to continue</span>
+
+  <!-- ═══════════════════════════ SHARED BG ═══════════════════════════ -->
+  <div class="museum-bg"></div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       VIEW 1: LANDING
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div id="view-landing" class="view active">
+    <div class="landing-inner">
+
+      <!-- Logo Bar -->
+      <div class="logo-bar">
+        <div class="logo-gem" aria-hidden="true"></div>
+        <div class="logo-text">
+          <h1>Subangan ARchive</h1>
+          <div class="subtitle">Cultural Heritage · Davao Oriental</div>
+        </div>
       </div>
-      
-      <button class="btn" id="start-ar">🎯 Start AR Experience</button>
-      
-      <div class="marker-box">
-        📌 <strong>Hiro Marker</strong> - <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank">Tap to download/print</a>
+
+      <!-- Hero -->
+      <div class="hero-panel">
+        <div class="hero-eyebrow">✦ Digital Museum Prototype</div>
+        <h2 class="hero-title">Bridging the past<br>through <em>augmented reality</em></h2>
+        <p class="hero-body">
+          Explore 3D digitized artifacts from Davao Oriental in AR or browse the archive gallery — no camera needed. Point your device at a marker to see history come alive, or discover artifacts at your own pace.
+        </p>
+      </div>
+
+      <!-- Info Grid -->
+      <div class="info-grid">
+        <!-- Quick start -->
+        <div class="info-panel">
+          <h3>Quick Start · AR Mode</h3>
+          <ul class="steps-list">
+            <li class="step-row">
+              <div class="step-num">1</div>
+              <p>Tap <b>Start AR</b> and allow camera access.</p>
+            </li>
+            <li class="step-row">
+              <div class="step-num">2</div>
+              <p>Point camera at the <b>Hiro marker</b> or QR code.</p>
+            </li>
+            <li class="step-row">
+              <div class="step-num">3</div>
+              <p>The <b>3D artifact</b> appears · use controls to rotate, zoom, adjust height.</p>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Notes -->
+        <div class="info-panel">
+          <h3>Archive Gallery Mode</h3>
+          <p class="notes-text">
+            Browse digitized artifacts <b>without a camera</b>. Tap <b>Open Archive</b> to explore the collection — rotate, zoom, and read about each piece in an immersive 3D viewer.
+            <br><br>
+            <b>AR Note:</b> Works best on <b>Chrome</b> (Android) or <b>Safari</b> (iOS). Ensure camera permissions are allowed.
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="action-row">
+        <button id="btn-start-ar" class="btn btn-primary">
+          <span>📷</span> Start AR
+        </button>
+        <button id="btn-open-archive" class="btn btn-gold">
+          <span>🏛</span> Open Archive
+        </button>
+        <a href="./qr-code.png" target="_blank" rel="noopener" class="btn btn-ghost">
+          <span>🔲</span> View Marker
+        </a>
+      </div>
+
+      <div id="error-msg"></div>
+
+      <div class="gold-line">Subangan ARchive System · Prototype</div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       VIEW 2: ARCHIVE GALLERY
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div id="view-archive" class="view">
+    <div class="museum-bg" style="position:fixed;z-index:0;pointer-events:none;"></div>
+
+    <!-- Sticky header -->
+    <div class="archive-header" style="z-index:51;">
+      <div class="archive-header-left">
+        <button class="btn btn-ghost" style="padding:8px 12px;font-size:13px;" id="btn-archive-back">← Back</button>
+        <h2 class="archive-header">Artifact Archive</h2>
+        <span class="archive-header-badge">Davao Oriental</span>
+      </div>
+    </div>
+
+    <!-- Body -->
+    <div class="archive-body" style="position:relative;z-index:1;">
+      <div class="archive-section-title">Collection — Select an artifact to view</div>
+      <div class="gallery-grid" id="gallery-grid">
+        <!-- Cards injected by JS -->
       </div>
     </div>
   </div>
-  
-  <div id="ar-container"></div>
-  
-  <div id="status-message">📍 Scan Hiro marker</div>
-  <div id="indicator">📏 Distance: 2.5m | ⬆️ Height: -0.6</div>
-  
-  <!-- Bottom Control Bar -->
-  <div class="control-panel" id="control-panel">
-    <div class="ctrl-btn" id="btn-rotate-left">◀</div>
-    <div class="ctrl-btn" id="btn-move-farther">➖</div>
-    <div class="ctrl-btn" id="btn-move-closer">➕</div>
-    <div class="ctrl-btn" id="btn-rotate-right">▶</div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       VIEW 3: 3D MODEL VIEWER
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div id="view-model" class="view">
+    <!-- Header -->
+    <div class="viewer-header">
+      <div class="viewer-header-left">
+        <button class="btn btn-ghost" style="padding:8px 12px;font-size:13px;" id="btn-model-back">← Gallery</button>
+        <div>
+          <div class="viewer-artifact-name" id="viewer-name">Artifact</div>
+          <div class="viewer-artifact-origin" id="viewer-origin">Davao Oriental</div>
+        </div>
+      </div>
+      <button class="btn btn-ghost" style="padding:8px 12px;font-size:12px;" id="btn-viewer-ar">📷 View in AR</button>
+    </div>
+
+    <!-- Body -->
+    <div class="viewer-body">
+      <!-- Canvas area -->
+      <div class="viewer-canvas-wrap" id="viewer-canvas-wrap">
+        <!-- Loading -->
+        <div class="model-loading" id="model-loading">
+          <div class="spinner"></div>
+          <div class="loading-label">Loading artifact…</div>
+        </div>
+        <!-- Placeholder -->
+        <div class="model-placeholder" id="model-placeholder">
+          <div class="placeholder-icon">🏺</div>
+          <div class="placeholder-label">3D model preview</div>
+        </div>
+        <!-- A-Frame scene injected here -->
+        <div id="viewer-scene-root"></div>
+      </div>
+
+      <!-- Controls bar -->
+      <div class="viewer-controls">
+        <!-- Rotate -->
+        <div class="ctrl-group">
+          <span class="ctrl-label">Rotate</span>
+          <button class="ctrl-btn" id="ctrl-rot-left" title="Rotate left">◀</button>
+          <button class="ctrl-btn" id="ctrl-rot-right" title="Rotate right">▶</button>
+        </div>
+        <!-- Zoom -->
+        <div class="ctrl-group">
+          <span class="ctrl-label">Zoom</span>
+          <button class="ctrl-btn" id="ctrl-zoom-in" title="Zoom in">+</button>
+          <button class="ctrl-btn" id="ctrl-zoom-out" title="Zoom out">−</button>
+        </div>
+        <!-- Height -->
+        <div class="ctrl-group">
+          <span class="ctrl-label">Height</span>
+          <button class="ctrl-btn" id="ctrl-up" title="Move up">↑</button>
+          <button class="ctrl-btn" id="ctrl-down" title="Move down">↓</button>
+        </div>
+        <!-- Reset -->
+        <div class="ctrl-group">
+          <button class="ctrl-btn ctrl-btn-reset" id="ctrl-reset">↺ Reset</button>
+        </div>
+      </div>
+
+      <!-- Artifact metadata -->
+      <div class="artifact-meta" id="artifact-meta">
+        <h3 id="meta-title">Artifact</h3>
+        <p id="meta-desc">Loading artifact information…</p>
+      </div>
+    </div>
   </div>
-  
-  <!-- Right Panel - Height Controls -->
-  <div class="right-panel" id="right-panel">
-    <div class="right-btn" id="btn-height-up">⬆️</div>
-    <div class="right-btn" id="btn-height-down">⬇️</div>
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       VIEW 4: AR MODE
+  ═══════════════════════════════════════════════════════════════════ -->
+  <div id="view-ar" class="view">
+    <div id="ar-root"></div>
+
+    <!-- HUD overlay -->
+    <div class="ar-hud">
+      <div class="ar-hud-top">
+        <div class="ar-brand">Subangan ARchive</div>
+        <button class="ar-exit-btn" id="btn-ar-exit">✕ Exit AR</button>
+      </div>
+      <div class="ar-scan-hint" id="ar-scan-hint">Point camera at marker to reveal artifact</div>
+    </div>
+
+    <!-- AR Controls -->
+    <div class="ar-controls">
+      <div class="ctrl-group">
+        <span class="ctrl-label">Rotate</span>
+        <button class="ctrl-btn" id="ar-rot-left">◀</button>
+        <button class="ctrl-btn" id="ar-rot-right">▶</button>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">Zoom</span>
+        <button class="ctrl-btn" id="ar-zoom-in">+</button>
+        <button class="ctrl-btn" id="ar-zoom-out">−</button>
+      </div>
+      <div class="ctrl-group">
+        <span class="ctrl-label">Height</span>
+        <button class="ctrl-btn" id="ar-up">↑</button>
+        <button class="ctrl-btn" id="ar-down">↓</button>
+      </div>
+    </div>
   </div>
-  
-  <!-- Left Panel - Reset -->
-  <div class="left-panel" id="left-panel">
-    <div class="left-btn" id="btn-reset">⟳</div>
-  </div>
-  
+
+  <!-- ══════════════════════════════════════════════════════════════════
+       JAVASCRIPT
+  ═══════════════════════════════════════════════════════════════════ -->
   <script>
-    (function() {
-      const startBtn = document.getElementById('start-ar');
-      const uiOverlay = document.getElementById('ui-overlay');
-      const arContainer = document.getElementById('ar-container');
-      const statusMsg = document.getElementById('status-message');
-      const controlPanel = document.getElementById('control-panel');
-      const rightPanel = document.getElementById('right-panel');
-      const leftPanel = document.getElementById('left-panel');
-      const indicator = document.getElementById('indicator');
-      
-      let arStarted = false;
-      let modelRotationY = 0;
-      let currentDistance = 2.5;
-      let currentHeight = -0.6;
-      let modelEntity = null;
-      let markerDetected = false;
-      
-      // Auto-repeat intervals
-      let rotateLeftInterval = null;
-      let rotateRightInterval = null;
-      let moveCloserInterval = null;
-      let moveFartherInterval = null;
-      let heightUpInterval = null;
-      let heightDownInterval = null;
-      
-      // Ranges
-      const MIN_DISTANCE = 0.5;
-      const MAX_DISTANCE = 18.0;
-      const MIN_HEIGHT = -1000.0;
-      const MAX_HEIGHT = 0.5;
-      const DEFAULT_DISTANCE = 2.5;
-      const DEFAULT_HEIGHT = -0.6;
-      
-      function showIndicator(text, isHeight = false) {
-        if (isHeight) {
-          indicator.textContent = `⬆️ Height: ${currentHeight.toFixed(1)}m`;
-        } else {
-          indicator.textContent = `📏 Distance: ${currentDistance.toFixed(1)}m | ⬆️ Height: ${currentHeight.toFixed(1)}m`;
-        }
-        indicator.style.opacity = '1';
-        setTimeout(() => {
-          indicator.style.opacity = '0';
-        }, 800);
-      }
-      
-      function startAR() {
-        if (arStarted) return;
-        arStarted = true;
-        
-        uiOverlay.classList.add('hidden');
-        setTimeout(() => {
-          uiOverlay.style.display = 'none';
-        }, 500);
-        
-        arContainer.innerHTML = `
-          <a-scene 
-            embedded 
-            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
-            vr-mode-ui="enabled: false"
-            renderer="logarithmicDepthBuffer: true; antialias: true"
-          >
-            <a-marker preset="hiro" id="hiro-marker">
-            </a-marker>
-            
-            <a-entity id="model-container" visible="false">
-              <a-entity 
-                id="artifact-model"
-                position="0 -0.6 -2.5"
-                rotation="0 0 0"
-                scale="0.5 0.5 0.5"
-              >
-                <a-gltf-model src="./artifact.glb"></a-gltf-model>
-              </a-entity>
-            </a-entity>
-            
-            <a-entity camera></a-entity>
-            
-            <a-entity light="type: ambient; color: #ffffff; intensity: 0.6"></a-entity>
-            <a-entity light="type: directional; color: #ffffff; intensity: 0.9; position: 2 5 3"></a-entity>
-            <a-entity light="type: directional; color: #ffeedd; intensity: 0.5; position: -2 3 4"></a-entity>
-          </a-scene>
+  (function () {
+    'use strict';
+
+    /* ──────────────────────────────────────────
+       TWO-MODEL SYSTEM
+       ─────────────────────────────────────────
+       AR / QR Scan mode  →  artifacts1.glb
+         (injected inside injectARScene() below)
+
+       Archive Gallery mode  →  artifacts2.glb
+         (each ARTIFACTS entry points to its own
+          .glb via the `model` field; all archive
+          artifacts currently use artifacts2.glb)
+
+       To add more archive artifacts:
+         1. Add a new entry to ARTIFACTS below.
+         2. Set `model` to the .glb path you want
+            shown in the gallery viewer.
+         3. Place the .glb in your project root.
+    ────────────────────────────────────────── */
+    const ARTIFACTS = [
+      {
+        id: 'archive-artifact',
+        name: 'Heritage Artifact',
+        origin: 'Davao Oriental',
+        period: 'Pre-Colonial Period',
+        icon: '🏺',
+        model: './artifacts2.glb',
+        description: 'A digitized cultural artifact from Davao Oriental, preserved and presented through the Subangan ARchive System. Explore it in full 3D — rotate, zoom, and examine every detail without visiting a physical museum.',
+        defaultRotation: 0,
+        defaultScale: 0.6,
+        defaultY: 0,
+      },
+      {
+        id: 'mandaya-weaving',
+        name: 'Mandaya Textile Fragment',
+        origin: 'Baganga, Davao Oriental',
+        period: 'Traditional',
+        icon: '🧵',
+        model: './artifacts2.glb',   // swap path for a different .glb as needed
+        description: 'A fragment of traditional Mandaya woven textile featuring intricate geometric patterns. The Mandaya people are renowned for their ikat-dyed fabrics called "dagmay," woven from abacá fiber using patterns passed down through generations.',
+        defaultRotation: 0,
+        defaultScale: 0.6,
+        defaultY: 0,
+      },
+      {
+        id: 'stone-adze',
+        name: 'Neolithic Stone Adze',
+        origin: 'Cateel, Davao Oriental',
+        period: 'c. 2000–500 BCE',
+        icon: '🪨',
+        model: './artifacts2.glb',   // swap path for a different .glb as needed
+        description: 'A polished stone adze used for woodworking and canoe construction. Its smooth, carefully crafted blade indicates the skill of early craftspeople who inhabited the coastal settlements of what is now Davao Oriental.',
+        defaultRotation: 0,
+        defaultScale: 0.6,
+        defaultY: 0,
+      },
+      {
+        id: 'gold-ornament',
+        name: 'Gold Funerary Ornament',
+        origin: 'Mati, Davao Oriental',
+        period: 'c. 10th–14th Century CE',
+        icon: '⭕',
+        model: './artifacts2.glb',   // swap path for a different .glb as needed
+        description: 'A delicate gold ornament recovered from burial sites. Signifying status and spiritual protection, such pieces demonstrate the region\'s connections to wider Southeast Asian trade networks and goldsmithing traditions.',
+        defaultRotation: 0,
+        defaultScale: 0.6,
+        defaultY: 0,
+      },
+      {
+        id: 'ritual-jar',
+        name: 'Trade Porcelain Jar',
+        origin: 'Boston, Davao Oriental',
+        period: 'c. 14th–16th Century CE',
+        icon: '🫙',
+        model: './artifacts2.glb',   // swap path for a different .glb as needed
+        description: 'A glazed stoneware jar from Chinese trade networks, found in eastern Davao archaeological sites. Its presence reveals the region\'s role in early maritime trade routes that connected Southeast Asia, China, and the wider Pacific.',
+        defaultRotation: 0,
+        defaultScale: 0.6,
+        defaultY: 0,
+      },
+    ];
+
+    /* ──────────────────────────────────────────
+       VIEW MANAGER
+    ────────────────────────────────────────── */
+    const views = {
+      landing:  document.getElementById('view-landing'),
+      archive:  document.getElementById('view-archive'),
+      model:    document.getElementById('view-model'),
+      ar:       document.getElementById('view-ar'),
+    };
+
+    function showView(name) {
+      Object.entries(views).forEach(([k, el]) => {
+        el.classList.toggle('active', k === name);
+      });
+      // Scroll to top when switching
+      const el = views[name];
+      if (el) el.scrollTop = 0;
+    }
+
+    /* ──────────────────────────────────────────
+       GALLERY
+    ────────────────────────────────────────── */
+    const galleryGrid = document.getElementById('gallery-grid');
+
+    function buildGallery() {
+      galleryGrid.innerHTML = '';
+      ARTIFACTS.forEach((artifact) => {
+        const card = document.createElement('div');
+        card.className = 'artifact-card';
+        card.dataset.id = artifact.id;
+        card.innerHTML = `
+          <div class="card-thumb">
+            <div class="card-thumb-icon">${artifact.icon}</div>
+          </div>
+          <div class="card-info">
+            <div class="card-name">${artifact.name}</div>
+            <div class="card-origin">${artifact.origin}</div>
+            <div class="card-period">${artifact.period}</div>
+          </div>
         `;
-        
-        const marker = document.querySelector('#hiro-marker');
-        const modelContainer = document.querySelector('#model-container');
-        
-        if (marker) {
-          marker.addEventListener('markerFound', () => {
-            if (!markerDetected) {
-              markerDetected = true;
-              
-              if (modelContainer) {
-                modelContainer.setAttribute('visible', 'true');
-              }
-              
-              statusMsg.innerHTML = '✅ Controls ready! HOLD buttons for continuous action';
-              statusMsg.style.background = 'rgba(34, 197, 94, 0.3)';
-              
-              controlPanel.style.display = 'flex';
-              rightPanel.style.display = 'flex';
-              leftPanel.style.display = 'flex';
-              
-              setTimeout(() => {
-                modelEntity = document.querySelector('#artifact-model');
-                if (modelEntity) {
-                  modelRotationY = 0;
-                  currentDistance = 2.5;
-                  currentHeight = -0.6;
-                  updateModelPosition();
-                  console.log('✅ Model ready');
-                  
-                  setTimeout(() => {
-                    statusMsg.style.opacity = '0';
-                  }, 4000);
-                }
-              }, 500);
-            }
-          });
+        card.addEventListener('click', () => openModelViewer(artifact));
+        galleryGrid.appendChild(card);
+      });
+    }
+
+    /* ──────────────────────────────────────────
+       3D MODEL VIEWER (A-Frame inline)
+    ────────────────────────────────────────── */
+    let currentArtifact = null;
+    let viewerScene = null;
+    let modelEntity = null;
+    let modelRot = 0;
+    let modelScale = 0.6;
+    let modelY = 0;
+
+    const DEFAULTS = { scale: 0.6, y: 0, rot: 0 };
+    const ROT_STEP = 5;
+    const SCALE_STEP = 0.05;
+    const Y_STEP = 0.05;
+    const MIN_SCALE = 0.1;
+    const MAX_SCALE = 2.5;
+
+    function openModelViewer(artifact) {
+      currentArtifact = artifact;
+      modelRot   = artifact.defaultRotation ?? DEFAULTS.rot;
+      modelScale = artifact.defaultScale    ?? DEFAULTS.scale;
+      modelY     = artifact.defaultY        ?? DEFAULTS.y;
+
+      document.getElementById('viewer-name').textContent   = artifact.name;
+      document.getElementById('viewer-origin').textContent = artifact.origin;
+      document.getElementById('meta-title').textContent    = `${artifact.name} · ${artifact.period}`;
+      document.getElementById('meta-desc').textContent     = artifact.description;
+
+      showView('model');
+      injectViewerScene(artifact);
+
+      // Mark selected card
+      document.querySelectorAll('.artifact-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.id === artifact.id);
+      });
+    }
+
+    function injectViewerScene(artifact) {
+      const root = document.getElementById('viewer-scene-root');
+      root.innerHTML = '';
+
+      const loading = document.getElementById('model-loading');
+      const placeholder = document.getElementById('model-placeholder');
+      loading.classList.remove('hidden');
+      placeholder.classList.add('hidden');
+
+      const sceneEl = document.createElement('a-scene');
+      sceneEl.setAttribute('embedded', '');
+      sceneEl.setAttribute('vr-mode-ui', 'enabled: false');
+      sceneEl.setAttribute('renderer', 'antialias: true; alpha: true');
+      sceneEl.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+
+      // Camera + lighting
+      sceneEl.innerHTML = `
+        <a-camera position="0 1.5 3" look-controls="enabled:false" wasd-controls="enabled:false"></a-camera>
+        <a-light type="ambient" color="#f5e8c8" intensity="0.6"></a-light>
+        <a-light type="directional" position="2 4 3" intensity="1.2" color="#ffe5a0"></a-light>
+        <a-light type="directional" position="-3 2 -2" intensity="0.4" color="#c9a0dc"></a-light>
+        <a-entity id="model-pivot" position="0 0 0">
+          <a-gltf-model
+            id="viewer-model"
+            src="${artifact.model}"
+            position="0 ${modelY} 0"
+            rotation="0 ${modelRot} 0"
+            scale="${modelScale} ${modelScale} ${modelScale}"
+          ></a-gltf-model>
+        </a-entity>
+      `;
+
+      root.appendChild(sceneEl);
+      viewerScene = sceneEl;
+
+      const onLoaded = () => {
+        loading.classList.add('hidden');
+        modelEntity = sceneEl.querySelector('#viewer-model');
+      };
+      const onModelLoaded = () => {
+        loading.classList.add('hidden');
+        modelEntity = sceneEl.querySelector('#viewer-model');
+      };
+
+      sceneEl.addEventListener('loaded', onLoaded, { once: true });
+      // Also listen to gltf model load
+      sceneEl.addEventListener('model-loaded', onModelLoaded, { once: true });
+
+      // Timeout fallback
+      setTimeout(() => {
+        loading.classList.add('hidden');
+        if (!modelEntity) {
+          modelEntity = sceneEl.querySelector('#viewer-model');
         }
-        
-        function updateModelPosition() {
-          if (!modelEntity) return;
-          modelEntity.setAttribute('position', { 
-            x: 0, 
-            y: currentHeight, 
-            z: -currentDistance 
-          });
+      }, 5000);
+    }
+
+    function applyViewerTransform() {
+      if (!modelEntity) return;
+      modelEntity.setAttribute('rotation', `0 ${modelRot} 0`);
+      modelEntity.setAttribute('scale', `${modelScale} ${modelScale} ${modelScale}`);
+      modelEntity.setAttribute('position', `0 ${modelY} 0`);
+    }
+
+    /* Hold-to-continue control helper */
+    function makeHoldControl(btn, onTick) {
+      let interval = null;
+      const start = (e) => {
+        e.preventDefault();
+        btn.classList.add('holding');
+        onTick();
+        interval = setInterval(onTick, 80);
+      };
+      const stop = () => {
+        btn.classList.remove('holding');
+        clearInterval(interval);
+        interval = null;
+      };
+      btn.addEventListener('mousedown', start);
+      btn.addEventListener('touchstart', start, { passive: false });
+      btn.addEventListener('mouseup', stop);
+      btn.addEventListener('mouseleave', stop);
+      btn.addEventListener('touchend', stop);
+      btn.addEventListener('touchcancel', stop);
+    }
+
+    // Wire viewer controls
+    makeHoldControl(document.getElementById('ctrl-rot-left'),  () => { modelRot -= ROT_STEP; applyViewerTransform(); });
+    makeHoldControl(document.getElementById('ctrl-rot-right'), () => { modelRot += ROT_STEP; applyViewerTransform(); });
+    makeHoldControl(document.getElementById('ctrl-zoom-in'),   () => { modelScale = Math.min(modelScale + SCALE_STEP, MAX_SCALE); applyViewerTransform(); });
+    makeHoldControl(document.getElementById('ctrl-zoom-out'),  () => { modelScale = Math.max(modelScale - SCALE_STEP, MIN_SCALE); applyViewerTransform(); });
+    makeHoldControl(document.getElementById('ctrl-up'),        () => { modelY += Y_STEP; applyViewerTransform(); });
+    makeHoldControl(document.getElementById('ctrl-down'),      () => { modelY -= Y_STEP; applyViewerTransform(); });
+    document.getElementById('ctrl-reset').addEventListener('click', () => {
+      if (!currentArtifact) return;
+      modelRot   = currentArtifact.defaultRotation ?? DEFAULTS.rot;
+      modelScale = currentArtifact.defaultScale    ?? DEFAULTS.scale;
+      modelY     = currentArtifact.defaultY        ?? DEFAULTS.y;
+      applyViewerTransform();
+    });
+
+    // Drag-to-rotate in viewer canvas
+    let dragStart = null;
+    const canvasWrap = document.getElementById('viewer-canvas-wrap');
+    canvasWrap.addEventListener('mousedown', (e) => { dragStart = e.clientX; });
+    canvasWrap.addEventListener('mousemove', (e) => {
+      if (dragStart === null) return;
+      const dx = e.clientX - dragStart;
+      modelRot += dx * 0.5;
+      dragStart = e.clientX;
+      applyViewerTransform();
+    });
+    canvasWrap.addEventListener('mouseup', () => { dragStart = null; });
+    canvasWrap.addEventListener('mouseleave', () => { dragStart = null; });
+
+    let touchDragStart = null;
+    canvasWrap.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 1) touchDragStart = e.touches[0].clientX;
+    }, { passive: true });
+    canvasWrap.addEventListener('touchmove', (e) => {
+      if (touchDragStart === null || e.touches.length !== 1) return;
+      const dx = e.touches[0].clientX - touchDragStart;
+      modelRot += dx * 0.5;
+      touchDragStart = e.touches[0].clientX;
+      applyViewerTransform();
+    }, { passive: true });
+    canvasWrap.addEventListener('touchend', () => { touchDragStart = null; });
+
+    /* ──────────────────────────────────────────
+       AR MODE
+    ────────────────────────────────────────── */
+    let arStarted = false;
+    let arRot = 0, arScale = 0.6, arY = 0;
+    let arModelEntity = null;
+
+    // AR controls (same hold-to-continue pattern)
+    function applyARTransform() {
+      if (!arModelEntity) return;
+      arModelEntity.setAttribute('rotation', `0 ${arRot} 0`);
+      arModelEntity.setAttribute('scale', `${arScale} ${arScale} ${arScale}`);
+      arModelEntity.setAttribute('position', `0 ${arY} 0`);
+    }
+
+    makeHoldControl(document.getElementById('ar-rot-left'),  () => { arRot -= ROT_STEP; applyARTransform(); });
+    makeHoldControl(document.getElementById('ar-rot-right'), () => { arRot += ROT_STEP; applyARTransform(); });
+    makeHoldControl(document.getElementById('ar-zoom-in'),   () => { arScale = Math.min(arScale + SCALE_STEP, MAX_SCALE); applyARTransform(); });
+    makeHoldControl(document.getElementById('ar-zoom-out'),  () => { arScale = Math.max(arScale - SCALE_STEP, MIN_SCALE); applyARTransform(); });
+    makeHoldControl(document.getElementById('ar-up'),        () => { arY += Y_STEP; applyARTransform(); });
+    makeHoldControl(document.getElementById('ar-down'),      () => { arY -= Y_STEP; applyARTransform(); });
+
+    const errorMsg = document.getElementById('error-msg');
+    function showError(msg) {
+      errorMsg.style.display = 'block';
+      errorMsg.textContent = msg;
+    }
+    function hideError() {
+      errorMsg.style.display = 'none';
+    }
+
+    async function preflightCamera() {
+      if (!navigator.mediaDevices?.getUserMedia) throw new Error('Camera API not available.');
+      try {
+        if (navigator.permissions?.query) {
+          const s = await navigator.permissions.query({ name: 'camera' });
+          if (s.state === 'granted') return;
         }
-        
-        function getModel() {
-          if (!modelEntity) {
-            modelEntity = document.querySelector('#artifact-model');
-          }
-          return modelEntity;
-        }
-        
-        // ROTATION
-        function rotateLeft() {
-          const model = getModel();
-          if (!model) return;
-          modelRotationY -= 15;
-          model.setAttribute('rotation', { x: 0, y: modelRotationY, z: 0 });
-        }
-        
-        function rotateRight() {
-          const model = getModel();
-          if (!model) return;
-          modelRotationY += 15;
-          model.setAttribute('rotation', { x: 0, y: modelRotationY, z: 0 });
-        }
-        
-        // DISTANCE
-        function moveCloser() {
-          const model = getModel();
-          if (!model) return;
-          if (currentDistance > MIN_DISTANCE) {
-            currentDistance = Math.max(currentDistance - 0.1, MIN_DISTANCE);
-            updateModelPosition();
-            showIndicator();
-          }
-        }
-        
-        function moveFarther() {
-          const model = getModel();
-          if (!model) return;
-          if (currentDistance < MAX_DISTANCE) {
-            currentDistance = Math.min(currentDistance + 0.1, MAX_DISTANCE);
-            updateModelPosition();
-            showIndicator();
-          }
-        }
-        
-        // HEIGHT (NEW!)
-        function heightUp() {
-          const model = getModel();
-          if (!model) return;
-          if (currentHeight < MAX_HEIGHT) {
-            currentHeight = Math.min(currentHeight + 0.05, MAX_HEIGHT);
-            updateModelPosition();
-            showIndicator(null, true);
-          }
-        }
-        
-        function heightDown() {
-          const model = getModel();
-          if (!model) return;
-          if (currentHeight > MIN_HEIGHT) {
-            currentHeight = Math.max(currentHeight - 0.05, MIN_HEIGHT);
-            updateModelPosition();
-            showIndicator(null, true);
-          }
-        }
-        
-        // RESET
-        function resetView() {
-          const model = getModel();
-          if (!model) return;
-          modelRotationY = 0;
-          currentDistance = DEFAULT_DISTANCE;
-          currentHeight = DEFAULT_HEIGHT;
-          updateModelPosition();
-          model.setAttribute('rotation', { x: 0, y: 0, z: 0 });
-          indicator.textContent = '🔄 Reset to default';
-          indicator.style.opacity = '1';
-          setTimeout(() => {
-            indicator.style.opacity = '0';
-          }, 800);
-        }
-        
-        // HOLD HANDLERS
-        function startRotateLeft() { if (rotateLeftInterval) clearInterval(rotateLeftInterval); rotateLeft(); rotateLeftInterval = setInterval(rotateLeft, 100); }
-        function stopRotateLeft() { if (rotateLeftInterval) { clearInterval(rotateLeftInterval); rotateLeftInterval = null; } }
-        function startRotateRight() { if (rotateRightInterval) clearInterval(rotateRightInterval); rotateRight(); rotateRightInterval = setInterval(rotateRight, 100); }
-        function stopRotateRight() { if (rotateRightInterval) { clearInterval(rotateRightInterval); rotateRightInterval = null; } }
-        function startMoveCloser() { if (moveCloserInterval) clearInterval(moveCloserInterval); moveCloser(); moveCloserInterval = setInterval(moveCloser, 80); }
-        function stopMoveCloser() { if (moveCloserInterval) { clearInterval(moveCloserInterval); moveCloserInterval = null; } }
-        function startMoveFarther() { if (moveFartherInterval) clearInterval(moveFartherInterval); moveFarther(); moveFartherInterval = setInterval(moveFarther, 80); }
-        function stopMoveFarther() { if (moveFartherInterval) { clearInterval(moveFartherInterval); moveFartherInterval = null; } }
-        function startHeightUp() { if (heightUpInterval) clearInterval(heightUpInterval); heightUp(); heightUpInterval = setInterval(heightUp, 80); }
-        function stopHeightUp() { if (heightUpInterval) { clearInterval(heightUpInterval); heightUpInterval = null; } }
-        function startHeightDown() { if (heightDownInterval) clearInterval(heightDownInterval); heightDown(); heightDownInterval = setInterval(heightDown, 80); }
-        function stopHeightDown() { if (heightDownInterval) { clearInterval(heightDownInterval); heightDownInterval = null; } }
-        
-        // Attach events
-        const leftBtn = document.getElementById('btn-rotate-left');
-        const rightBtn = document.getElementById('btn-rotate-right');
-        const closerBtn = document.getElementById('btn-move-closer');
-        const fartherBtn = document.getElementById('btn-move-farther');
-        const heightUpBtn = document.getElementById('btn-height-up');
-        const heightDownBtn = document.getElementById('btn-height-down');
-        const resetViewBtn = document.getElementById('btn-reset');
-        
-        const attachHoldEvents = (btn, startFn, stopFn) => {
-          if (!btn) return;
-          btn.addEventListener('mousedown', startFn);
-          btn.addEventListener('mouseup', stopFn);
-          btn.addEventListener('mouseleave', stopFn);
-          btn.addEventListener('touchstart', (e) => { e.preventDefault(); startFn(); });
-          btn.addEventListener('touchend', stopFn);
-          btn.addEventListener('touchcancel', stopFn);
-        };
-        
-        attachHoldEvents(leftBtn, startRotateLeft, stopRotateLeft);
-        attachHoldEvents(rightBtn, startRotateRight, stopRotateRight);
-        attachHoldEvents(closerBtn, startMoveCloser, stopMoveCloser);
-        attachHoldEvents(fartherBtn, startMoveFarther, stopMoveFarther);
-        attachHoldEvents(heightUpBtn, startHeightUp, stopHeightUp);
-        attachHoldEvents(heightDownBtn, startHeightDown, stopHeightDown);
-        
-        if (resetViewBtn) {
-          resetViewBtn.addEventListener('click', resetView);
-          resetViewBtn.addEventListener('touchstart', (e) => { e.preventDefault(); resetView(); });
-        }
+      } catch {}
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      stream.getTracks().forEach(t => t.stop());
+    }
+
+    function injectARScene() {
+      const arRoot = document.getElementById('ar-root');
+      arRoot.innerHTML = '';
+      arRot = 0; arScale = 0.6; arY = 0; arModelEntity = null;
+
+      arRoot.innerHTML = `
+        <a-scene
+          embedded
+          vr-mode-ui="enabled: false"
+          renderer="antialias: true; alpha: true"
+          mindar-image="imageTargetSrc: ./qr-target.mind; autoStart: false; uiLoading: no; uiError: no; uiScanning: no;"
+        >
+          <a-anchor targetIndex="0">
+            <a-entity position="0 0 0" id="ar-pivot">
+              <a-gltf-model
+                id="ar-model"
+                src="./artifacts1.glb"
+                position="0 0 0"
+                rotation="0 180 0"
+                scale="0.6 0.6 0.6"
+              ></a-gltf-model>
+              <a-text
+                value="Subangan ARchive\nArtifact Loaded"
+                align="center"
+                width="2.2"
+                position="0 1.4 0"
+                color="#f5efe3"
+              ></a-text>
+            </a-entity>
+          </a-anchor>
+          <a-entity camera></a-entity>
+        </a-scene>
+      `;
+
+      const scene = arRoot.querySelector('a-scene');
+      if (!scene) return;
+
+      scene.addEventListener('loaded', () => {
+        scene.startAR?.();
+        arModelEntity = scene.querySelector('#ar-model');
+      });
+
+      // Watchdog
+      let watchdog = setTimeout(() => {
+        stopAR('Camera did not start. Check permissions, close other apps using the camera, and try again.');
+      }, 12000);
+
+      const clearWatchdog = () => { clearTimeout(watchdog); watchdog = null; };
+
+      scene.addEventListener('arjs-video-loaded', clearWatchdog);
+      scene.addEventListener('arjs-video-error', (e) => {
+        clearWatchdog();
+        const det = e?.detail?.message || 'Camera failed.';
+        stopAR(`Camera error: ${det}`);
+      });
+
+      // Detect video playing
+      const attachVideo = (video) => {
+        if (!video || video.__sub) return;
+        video.__sub = true;
+        video.addEventListener('playing', clearWatchdog, { once: true });
+        video.addEventListener('loadedmetadata', () => { if (!video.paused) clearWatchdog(); });
+      };
+      const tryVideo = () => attachVideo(arRoot.querySelector('video'));
+      tryVideo();
+      const obs = new MutationObserver(tryVideo);
+      obs.observe(arRoot, { childList: true, subtree: true });
+    }
+
+    function stopAR(errorText) {
+      arStarted = false;
+      document.getElementById('ar-root').innerHTML = '';
+      showView('landing');
+      if (errorText) showError(errorText);
+    }
+
+    // Start AR button
+    document.getElementById('btn-start-ar').addEventListener('click', async () => {
+      if (arStarted) return;
+      hideError();
+      const btn = document.getElementById('btn-start-ar');
+      btn.disabled = true;
+      btn.textContent = 'Starting…';
+
+      try {
+        await preflightCamera();
+      } catch (e) {
+        btn.disabled = false;
+        btn.innerHTML = '<span>📷</span> Start AR';
+        showError(`Camera permission denied: ${e.message || e}. Allow camera access in your browser settings.`);
+        return;
       }
-      
-      startBtn.addEventListener('click', startAR);
-    })();
+
+      await new Promise(r => setTimeout(r, 250));
+      arStarted = true;
+      btn.disabled = false;
+      btn.innerHTML = '<span>📷</span> Start AR';
+      showView('ar');
+      injectARScene();
+    });
+
+    // Exit AR
+    document.getElementById('btn-ar-exit').addEventListener('click', () => stopAR(''));
+
+    // Viewer → back to AR
+    document.getElementById('btn-viewer-ar').addEventListener('click', () => {
+      stopAR('');
+      setTimeout(async () => {
+        hideError();
+        const btn = document.getElementById('btn-start-ar');
+        btn.disabled = true;
+        try {
+          await preflightCamera();
+        } catch {}
+        await new Promise(r => setTimeout(r, 250));
+        arStarted = true;
+        btn.disabled = false;
+        showView('ar');
+        injectARScene();
+      }, 100);
+    });
+
+    /* ──────────────────────────────────────────
+       NAVIGATION
+    ────────────────────────────────────────── */
+    document.getElementById('btn-open-archive').addEventListener('click', () => {
+      buildGallery();
+      showView('archive');
+    });
+
+    document.getElementById('btn-archive-back').addEventListener('click', () => {
+      showView('landing');
+    });
+
+    document.getElementById('btn-model-back').addEventListener('click', () => {
+      // Destroy viewer scene to free resources
+      document.getElementById('viewer-scene-root').innerHTML = '';
+      viewerScene = null; modelEntity = null;
+      showView('archive');
+    });
+
+    // Close viewer scene when leaving model view (prevent memory leaks)
+    // (handled in btn-model-back above)
+
+    /* ──────────────────────────────────────────
+       INIT
+    ────────────────────────────────────────── */
+    buildGallery(); // pre-build for snappy open
+
+  }());
   </script>
 </body>
 </html>
